@@ -1,69 +1,97 @@
 import streamlit as st
 import pandas as pd
-import folium
-from streamlit_folium import st_folium
-from datetime import datetime
+from streamlit_calendar import calendar
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Europe 2027", layout="wide")
+st.set_page_config(page_title="Europe 2027 Itinerary", layout="wide")
 
-# --- DATA ---
-# Generic data for the "Public" dashboard
-trip_data = [
-    {"City": "Helsinki", "Hotel": "Hotel St. George", "Lat": 60.165, "Lon": 24.940, "Budget": 330},
-    {"City": "Krakow", "Hotel": "Hotel Stary", "Lat": 50.061, "Lon": 19.937, "Budget": 394},
-    {"City": "Prague", "Hotel": "The Julius", "Lat": 50.087, "Lon": 14.421, "Budget": 352},
-    {"City": "Vienna", "Hotel": "Hotel Sacher", "Lat": 48.203, "Lon": 16.369, "Budget": 768},
-    {"City": "Budapest", "Hotel": "Anantara New York Palace", "Lat": 47.498, "Lon": 19.070, "Budget": 388},
-    {"City": "Rome", "Hotel": "Eitch Borromini", "Lat": 41.899, "Lon": 12.473, "Budget": 355},
-]
-df = pd.DataFrame(trip_data)
+# --- DATA LOADING ---
+@st.cache_data
+def load_data():
+    # Loading the data from your uploaded file
+    df = pd.read_csv('itinerary.csv')
+    # Clean up empty rows if any
+    df = df.dropna(subset=['Date', 'Display Name'], how='all')
+    # Standardize Date format for Python (assuming D/M/YY from your file)
+    df['Date'] = pd.to_datetime(df['Date'], dayfirst=True).dt.strftime('%Y-%m-%d')
+    return df
 
-st.title("🇪🇺 Grand European Tour 2027")
-st.markdown("---")
+df = load_data()
 
-# --- LAYOUT ---
-tab1, tab2, tab3 = st.tabs(["🗺️ Map & Logistics", "🌡️ Weather Strategy", "📝 Daily Itinerary"])
+# --- CALENDAR EVENT PREPARATION ---
+def create_calendar_events(df):
+    events = []
+    for _, row in df.iterrows():
+        # Map M/A/N to display titles or colors if desired
+        slot_prefix = {"M": "🌅 Morning", "A": "⛅ Afternoon", "N": "🌙 Night"}.get(row['Time (General)'], "")
+        
+        events.append({
+            "title": f"{slot_prefix}: {row['Display Name']}",
+            "start": row['Date'],
+            "end": row['Date'],
+            "resourceId": row['City'],
+            "allDay": True,
+            "extendedProps": {
+                "notes": row['Notes'],
+                "flex": row['Flexible'],
+                "duration": row['Duration']
+            }
+        })
+    return events
+
+# --- APP LAYOUT ---
+st.title("🇪🇺 Europe 2027: Interactive Plan")
+
+tab1, tab2 = st.tabs(["📅 Monthly Calendar", "📋 Daily Deep-Dive"])
 
 with tab1:
-    st.header("Home Bases")
-    col1, col2 = st.columns([1, 2])
+    st.header("Trip Overview")
+    calendar_options = {
+        "headerToolbar": {
+            "left": "today prev,next",
+            "center": "title",
+            "right": "dayGridMonth,dayGridWeek"
+        },
+        "initialView": "dayGridMonth",
+    }
     
-    with col1:
-        st.write("Our selected romantic & historic stays:")
-        st.dataframe(df[['City', 'Hotel', 'Budget']], hide_index=True)
-        st.metric("Total Accommodation Est.", f"${df['Budget'].sum() * 3:,.2f} AUD") # Rough 3-night avg
-
-    with col2:
-        # Map centering on Central Europe
-        m = folium.Map(location=[50.0, 15.0], zoom_start=4)
-        for _, row in df.iterrows():
-            folium.Marker(
-                [row['Lat'], row['Lon']], 
-                popup=f"{row['Hotel']}, {row['City']}",
-                tooltip=row['City'],
-                icon=folium.Icon(color='red', icon='info-sign')
-            ).add_to(m)
-        st_folium(m, width=700, height=400)
+    # Render the calendar with events from your CSV
+    state = calendar(events=create_calendar_events(df), options=calendar_options)
+    
+    # Interactive Sidebar Logic
+    if state.get("eventClick"):
+        event = state["eventClick"]["event"]
+        st.sidebar.subheader(event["title"])
+        props = event.get("extendedProps", {})
+        st.sidebar.write(f"**Duration:** {props.get('duration', 'N/A')}")
+        st.sidebar.write(f"**Flexible:** {props.get('flex', 'N/A')}")
+        st.sidebar.info(f"**Notes:** {props.get('notes', 'No specific notes.')}")
 
 with tab2:
-    st.header("The 'Pack-o-Meter'")
-    st.info("Historical Averages for Jan 01 - Jan 15 (Last 5 Years)")
-    # Here you would eventually add the Meteostat API calls
-    st.write("💡 **Tip:** Based on current trends, expect -5°C in Krakow and a much milder 10°C in Rome.")
+    st.header("Morning, Afternoon, Night Breakdown")
     
-    st.checkbox("Show Heavy Winter Gear List")
-    st.checkbox("Show Formal Wear (for Vienna Opera/Sacher)")
+    # Filter by Date
+    available_dates = sorted(df['Date'].unique())
+    selected_date = st.selectbox("Select a date to view rich details:", available_dates)
+    
+    day_plan = df[df['Date'] == selected_date].sort_values(by='Time (General)', ascending=False) # Simple sort N->M
+    
+    if day_plan.empty:
+        st.write("No activities scheduled for this day.")
+    else:
+        for _, row in day_plan.iterrows():
+            slot_label = {"M": "Morning", "A": "Afternoon", "N": "Night"}.get(row['Time (General)'], "Other")
+            
+            # Using Expanders for "Rich Information" as requested
+            with st.expander(f"**{slot_label}**: {row['Display Name']} ({row['Duration']})"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**City:** {row['City']}")
+                    st.write(f"**Flexible:** {row['Flexible']}")
+                with col2:
+                    if pd.notna(row['Notes']):
+                        st.markdown(f"**Important Notes:**\n{row['Notes']}")
+                    else:
+                        st.write("*No additional notes for this slot.*")
 
-with tab3:
-    st.header("The Master Plan")
-    selected_city = st.selectbox("Select a City to see the plan:", df['City'])
-    
-    # Example logic for showing specific itinerary details
-    if selected_city == "Vienna":
-        st.write("- **Jan 06:** Flak Towers (Morning) & HGM Museum (Afternoon)")
-        st.write("- **Jan 07:** Mauthausen Concentration Camp (Full Day)")
-        st.write("- **Jan 08:** Austrian Parliament & Sisi Museum")
-    elif selected_city == "Budapest":
-        st.write("- **Jan 09:** Gellért Thermal Baths on arrival")
-        st.write("- **Jan 10:** Jewish Quarter & House of Terror")
+# Optional: Map View could go here in a Tab 3
