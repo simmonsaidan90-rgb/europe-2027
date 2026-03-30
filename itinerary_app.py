@@ -6,14 +6,29 @@ from streamlit_calendar import calendar
 st.set_page_config(page_title="Europe 2027 Itinerary", layout="wide")
 
 # --- DATA LOADING ---
-@st.cache_data
+
 def load_data():
-    # Loading the data from your uploaded file
+    # 1. Read the file
     df = pd.read_csv('itinerary.csv')
-    # Clean up empty rows if any
-    df = df.dropna(subset=['Date', 'Display Name'], how='all')
-    # Standardize Date format for Python (assuming D/M/YY from your file)
-    df['Date'] = pd.to_datetime(df['Date'], dayfirst=True).dt.strftime('%Y-%m-%d')
+    
+    # 2. Clean the column names (removes hidden spaces/BOM characters)
+    df.columns = df.columns.str.strip()
+    
+    # 3. Handle the Date column specifically
+    # We tell pandas to look for Day/Month/Year format used in your file
+    df['Date'] = pd.to_datetime(df['Date'], dayfirst=True, errors='coerce')
+    
+    # 4. Drop rows that are completely empty or have no date
+    df = df.dropna(subset=['Date'])
+    
+    # 5. Fill empty Notes/Duration with empty strings so they don't show as 'NaN'
+    df['Notes'] = df['Notes'].fillna('')
+    df['Duration'] = df['Duration'].fillna('N/A')
+    df['Display Name'] = df['Display Name'].fillna('Unscheduled Slot')
+    
+    # 6. Format date for the calendar and display
+    df['Date_str'] = df['Date'].dt.strftime('%Y-%m-%d')
+    
     return df
 
 df = load_data()
