@@ -140,4 +140,4 @@ else:
                         ).add_to(m_daily)
                 
                 # Display the map
-                st_folium(m_daily, width=500, height=450, key=f"daily_map_{selected_date}")
+                st_folium(m_daily, width=600, height=550, key=f"daily_map_{selected_date}")
