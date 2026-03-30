@@ -121,16 +121,23 @@ else:
                         st.write(row['Notes'])
             
             with col_map:
-                # Daily Map Logic
+                # 1. Get the center of the map based on the city
                 city_center = CITY_COORDS.get(current_city, [50.0, 15.0])
                 m_daily = folium.Map(location=city_center, zoom_start=13)
                 
-                # Add a marker for the day's activity
-                # (Note: In future you can add Lat/Long columns to the CSV for specific sites!)
-                folium.Marker(
-                    city_center, 
-                    popup=f"Today's Base: {current_city}",
-                    icon=folium.Icon(color='blue', icon='home')
-                ).add_to(m_daily)
+                # 2. Loop through the activities for THIS day and add specific pins
+                for _, row in day_data.iterrows():
+                    # Check if Lat and Long exist and are not empty
+                    if pd.notna(row.get('Lat')) and pd.notna(row.get('Long')):
+                        # Color code based on Slot
+                        icon_color = "orange" if row['Slot'] == "Morning" else "blue" if row['Slot'] == "Afternoon" else "purple"
+                        
+                        folium.Marker(
+                            location=[row['Lat'], row['Long']],
+                            popup=f"{row['Slot']}: {row['Activity']}",
+                            tooltip=row['Activity'],
+                            icon=folium.Icon(color=icon_color, icon='info-sign')
+                        ).add_to(m_daily)
                 
-                st_folium(m_daily, width=500, height=400, key=f"map_{selected_date}")
+                # Display the map
+                st_folium(m_daily, width=500, height=450, key=f"daily_map_{selected_date}")
