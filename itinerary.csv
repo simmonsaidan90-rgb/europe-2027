@@ -1,7 +1,7 @@
-Date,City,Slot,Duration,Activity,Flexible,Type,Notes
-2027-01-01,Helsinki,Morning,4h,Arrival & Check-in,No,Travel,Arrive Helsinki. Check into Hotel St. George.
-2027-01-01,Helsinki,Afternoon,3h,Design District Walk,Yes,Activity,Explore 19th-century architecture.
-2027-01-01,Helsinki,Night,2h,Löyly Sauna,Yes,Relax,Traditional Finnish sauna by the sea.
+Date,City,Slot,Duration,Activity,Flexible,Type,Notes,Lat,Long
+2027-01-01,Helsinki,Morning,4h,Arrival & Check-in,No,Travel,Check into Hotel St. George.,60.1686,24.9384
+2027-01-01,Helsinki,Afternoon,3h,Design District,Yes,Activity,Explore 19th-century architecture.,60.1631,24.9410
+2027-01-01,Helsinki,Night,2h,Löyly Sauna,Yes,Relax,Traditional Finnish sauna by the sea.,60.1500,24.9281
 2027-01-03,Krakow,Morning,8h,Auschwitz-Birkenau,No,History,Booked tour. Full day emotional commitment.
 2027-01-04,Krakow,Morning,3h,Schindler’s Factory,No,History,In-depth WWII occupation history.
 2027-01-06,Prague,Night,2h,Charles Bridge,Yes,Activity,"Less crowded, very atmospheric."
