@@ -1,11 +1,52 @@
 Date,City,Slot,Activity,Flexible,Type,Notes
-2027-01-03,Prague,Night,Arrival & Check-in,No,Travel,Arrive from Krakow. Check into The Julius.
-2027-01-04,Prague,Morning,Old Town & Jewish Quarter,Yes,Activity,Focus on Josefov and WWII history.
-2027-01-04,Prague,Afternoon,Charles Bridge & Castle,Yes,Activity,Walk across bridge before sunset.
-2027-01-04,Prague,Night,Traditional Czech Dinner,Yes,Meal,Looking for historic cellar restaurants.
-2027-01-05,Prague,Morning,Strahov Monastery Library,No,Activity,Must book tour in advance.
-2027-01-05,Prague,Afternoon,Museum of Communism,Yes,Activity,Connects to post-WWII narrative.
-2027-01-05,Prague,Night,Jazz Boat or Local Bar,Yes,Activity,Flexible evening.
-2027-01-06,Prague,Morning,Final Souvenirs / Coffee,Yes,Activity,Slow morning before travel.
-2027-01-06,Vienna,Afternoon,Train Prague to Vienna,No,Travel,OBB Railjet (approx 4 hours).
-2027-01-06,Vienna,Night,Hotel Sacher Check-in,No,Travel,Dinner at the hotel or nearby Opera district.
+2027-01-01,Helsinki,Morning,Arrival & Settling In,No,Travel,Arrive Helsinki. Check into Hotel St. George.
+2027-01-01,Helsinki,Afternoon,Design District Walk,Yes,Activity,Explore 19th-century architecture.
+2027-01-01,Helsinki,Night,Löyly Sauna & Dinner,Yes,Relax,Traditional Finnish sauna by the sea.
+2027-01-02,Helsinki,Morning,Suomenlinna Sea Fortress,No,History,UNESCO site with WWII coastal defense history.
+2027-01-02,Helsinki,Afternoon,Rock Church (Temppeliaukio),Yes,Architecture,Modernist church carved into rock.
+2027-01-02,Helsinki,Night,Helsinki Harbor Walk,Yes,Relax,Views of the frozen harbor.
+2027-01-03,Krakow,Morning,Flight to Krakow,No,Travel,Morning flight to Poland.
+2027-01-03,Krakow,Afternoon,Old Town Square,Yes,Activity,Check into Hotel Stary. Explore Rynek Główny.
+2027-01-03,Krakow,Night,Wawel Castle Views,Yes,History,Evening walk around the royal complex.
+2027-01-04,Krakow,Morning,Auschwitz-Birkenau Tour,No,History,Booked tour. Full day emotional commitment.
+2027-01-04,Krakow,Afternoon,Auschwitz-Birkenau Tour,No,History,Continuation of site visit.
+2027-01-04,Krakow,Night,Quiet Dinner in Kazimierz,Yes,Relax,Decompress in the Jewish Quarter.
+2027-01-05,Krakow,Morning,Schindler’s Factory Museum,No,History,In-depth WWII occupation history.
+2027-01-05,Krakow,Afternoon,Kazimierz Jewish Quarter,Yes,History,Remnants of pre-war Jewish life.
+2027-01-05,Krakow,Night,Wieliczka Salt Mine,No,Activity,Evening tour of the underground cathedral.
+2027-01-06,Prague,Morning,Train Krakow to Prague,No,Travel,Long scenic rail journey across the border.
+2027-01-06,Prague,Afternoon,The Julius Check-in,No,Travel,Relax and recover from travel.
+2027-01-06,Prague,Night,Charles Bridge at Night,Yes,Activity,Less crowded, very atmospheric.
+2027-01-07,Prague,Morning,Terezin Concentration Camp,No,History,Day trip to the WWII Ghetto/Fortress.
+2027-01-07,Prague,Afternoon,Terezin Concentration Camp,No,History,Return to Prague late afternoon.
+2027-01-07,Prague,Night,Old Town Square Dinner,Yes,Meal,Try traditional Czech Trdelník.
+2027-01-08,Prague,Morning,Prague Castle Complex,No,History,St. Vitus Cathedral and Golden Lane.
+2027-01-08,Prague,Afternoon,Jewish Quarter (Josefov),No,History,Old Jewish Cemetery and Synagogues.
+2027-01-08,Prague,Night,Church of St. Cyril & Methodius,No,History,Site of the Heydrich paratrooper standoff.
+2027-01-09,Vienna,Morning,Train Prague to Vienna,No,Travel,OBB Railjet (4 hours).
+2027-01-09,Vienna,Afternoon,Hotel Sacher Check-in,No,Relax,SPLASH OUT. Original Sacher Torte at Café Sacher.
+2027-01-09,Vienna,Night,Vienna State Opera,Yes,Culture,Check performance schedule (directly across hotel).
+2027-01-10,Vienna,Morning,Hofburg Imperial Palace,No,History,Sisi Museum and Imperial Treasury.
+2027-01-10,Vienna,Afternoon,Flak Tower - Haus des Meeres,No,History,WWII Anti-aircraft tower converted to Aquarium.
+2027-01-10,Vienna,Night,Graben & Kohlmarkt,Yes,Relax,Luxury window shopping in the cold.
+2027-01-11,Vienna,Morning,Mauthausen Memorial,No,History,Full day trip to the quarry and camp site.
+2027-01-11,Vienna,Afternoon,Mauthausen Memorial,No,History,Return to Vienna in the evening.
+2027-01-11,Vienna,Night,Heuriger Dinner,Yes,Meal,Traditional wine tavern experience.
+2027-01-12,Budapest,Morning,Train Vienna to Budapest,No,Travel,Short 2.5 hour train journey.
+2027-01-12,Budapest,Afternoon,Parliament & Shoes on Danube,No,History,Moving WWII memorial on the riverbank.
+2027-01-12,Budapest,Night,Ruin Bar Tour,Yes,Activity,Atmospheric bars in pre-war buildings.
+2027-01-13,Budapest,Morning,House of Terror Museum,No,History,Headquarters of both Nazi and Communist secret police.
+2027-01-13,Budapest,Afternoon,Buda Castle & Fisherman’s Bastion,Yes,History,Best views over the Danube.
+2027-01-13,Budapest,Night,Széchenyi Thermal Baths,Yes,Relax,Outdoor heated pools in the winter air.
+2027-01-14,Rome,Morning,Flight Budapest to Rome,No,Travel,Arrival in Italy.
+2027-01-14,Rome,Afternoon,Check into Eitch Borromini,No,Travel,Piazza Navona views from the room.
+2027-01-14,Rome,Night,Pantheon & Trevi Fountain,Yes,Activity,Walking tour of the iconic sites.
+2027-01-15,Rome,Morning,Vatican Museums & St. Peters,No,History,Early entry recommended.
+2027-01-15,Rome,Afternoon,Trastevere Exploration,Yes,Relax,Medieval streets and food scene.
+2027-01-15,Rome,Night,Colosseum by Night,No,History,Book special night-time underground tour.
+2027-01-16,Paris,Morning,Flight Rome to Paris,No,Travel,Check into Saint-Germain-des-Prés.
+2027-01-16,Paris,Afternoon,Musée de l’Armée (Invalides),No,History,Napoleon's Tomb and massive WWII section.
+2027-01-16,Paris,Night,Seine River Cruise,Yes,Relax,Seeing the city lights from the water.
+2027-01-17,Paris,Morning,Louvre Museum,No,Art,Focus on the Denon Wing.
+2027-01-17,Paris,Afternoon,Montmartre & Sacré-Cœur,Yes,Activity,Artists square and city panoramic.
+2027-01-17,Paris,Night,Farewell Dinner in the 6th,Yes,Meal,Classic French Bistro experience.
