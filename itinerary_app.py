@@ -17,8 +17,13 @@ def load_data():
     try:
         df = pd.read_csv('itinerary.csv') 
         df.columns = df.columns.str.strip()
+        
+        # Convert Lat/Long to numeric, forcing errors to NaN (so it doesn't crash)
+        if 'Lat' in df.columns and 'Long' in df.columns:
+            df['Lat'] = pd.to_numeric(df['Lat'], errors='coerce')
+            df['Long'] = pd.to_numeric(df['Long'], errors='coerce')
+            
         df = df.dropna(subset=['Date', 'Activity'], how='all')
-        # Handle the specific CSV date format
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         df = df.dropna(subset=['Date']) 
         df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
@@ -39,15 +44,15 @@ CITY_COORDS = {
 
 def get_weather_tip(city):
     tips = {
-        "Helsinki": "❄️ **Helsinki Strategy:** Extremely Cold (-10°C). Use the underground tunnels where possible. Double socks.",
-        "Krakow": "🧥 **Krakow Strategy:** Freezing (0°C). Auschwitz is very exposed; you need a windproof outer layer.",
-        "Prague": "🧣 **Prague Strategy:** Chilly (2°C). Cobblestones are slippery. Woolen insoles are a game changer.",
-        "Vienna": "🧤 **Vienna Strategy:** Crisp (3°C). Perfect for coffee houses. Pack one 'Grand' outfit for the Sacher/Opera.",
-        "Budapest": "💨 **Budapest Strategy:** Windy (4°C). The Danube breeze is biting. Ideal for thermal bath days.",
-        "Rome": "🌤️ **Rome Strategy:** Milder (10°C). High chance of 'winter sun'. A light scarf and layers are perfect.",
-        "Paris": "🌦️ **Paris Strategy:** Damp (8°C). Pack a compact umbrella. Dress is 'casual chic'—darker colors fit in better."
+        "Helsinki": "❄️ **Helsinki:** Extremely Cold (-10°C).",
+        "Krakow": "🧥 **Krakow:** Freezing (0°C). Auschwitz is exposed.",
+        "Prague": "🧣 **Prague:** Chilly (2°C). Cobblestones are slippery.",
+        "Vienna": "🧤 **Vienna:** Crisp (3°C). Sacher/Opera readiness.",
+        "Budapest": "💨 **Budapest:** Windy (4°C). Thermal bath season.",
+        "Rome": "🌤️ **Rome:** Milder (10°C). Winter sun.",
+        "Paris": "🌦️ **Paris:** Damp (8°C). Pack an umbrella."
     }
-    return tips.get(city, "🌡️ Check local forecast for winter conditions.")
+    return tips.get(city, "🌡️ Check local forecast.")
 
 # --- APP LAYOUT ---
 st.title("🇪🇺 Grand European Tour 2027")
@@ -55,7 +60,7 @@ st.title("🇪🇺 Grand European Tour 2027")
 if df.empty:
     st.warning("Please check your itinerary.csv on GitHub.")
 else:
-    tab1, tab2, tab3 = st.tabs(["📅 Calendar & Details", "🗺️ Full Trip Map", "📋 Daily Deep-Dive"])
+    tab1, tab2, tab3 = st.tabs(["📅 Calendar", "🗺️ Full Trip Map", "📋 Daily Deep-Dive"])
 
     # TAB 1: CALENDAR
     with tab1:
@@ -82,14 +87,11 @@ else:
                 e = st.session_state.clicked_event
                 props = e.get("extendedProps", {})
                 st.markdown(f"### {e['title']}")
-                st.write(f"**📍 {props.get('city')}** | **⏳ {props.get('dur')}**")
                 st.info(props.get('notes'))
                 st.warning(get_weather_tip(props.get('city')))
                 if st.button("Close Details"):
                     st.session_state.clicked_event = None
                     st.rerun()
-            else:
-                st.write("Click a calendar event for notes.")
 
     # TAB 2: FULL MAP
     with tab2:
@@ -97,47 +99,42 @@ else:
         for city, loc in CITY_COORDS.items():
             if city in df['City'].values:
                 folium.Marker(loc, popup=city, icon=folium.Icon(color='red')).add_to(m_full)
-        st_folium(m_full, width=1000, height=500, key="full_map")
+        st_folium(m_full, width=1000, height=600, key="full_map")
 
-    # TAB 3: DAILY DEEP DIVE (With Daily Weather & Map)
+    # TAB 3: DAILY DEEP DIVE
     with tab3:
-        selected_date = st.selectbox("Select a day to visualize:", sorted(df['Date'].unique()))
+        selected_date = st.selectbox("Select Date:", sorted(df['Date'].unique()))
         day_data = df[df['Date'] == selected_date]
         
         if not day_data.empty:
             current_city = day_data.iloc[0]['City']
-            
-            # Header Row: Weather & City Info
             st.subheader(f"Plan for {selected_date} in {current_city}")
-            st.info(get_weather_tip(current_city))
             
             col_list, col_map = st.columns([1, 1])
             
             with col_list:
+                st.info(get_weather_tip(current_city))
                 for _, row in day_data.iterrows():
                     with st.expander(f"**{row['Slot']}**: {row['Activity']}"):
-                        st.write(f"**Duration:** {row.get('Duration', 'TBD')}")
-                        st.write(f"**Flexible:** {row.get('Flexible', 'N/A')}")
                         st.write(row['Notes'])
             
             with col_map:
-                # 1. Get the center of the map based on the city
                 city_center = CITY_COORDS.get(current_city, [50.0, 15.0])
                 m_daily = folium.Map(location=city_center, zoom_start=13)
                 
-                # 2. Loop through the activities for THIS day and add specific pins
+                # Check for pins
+                pins_added = 0
                 for _, row in day_data.iterrows():
-                    # Check if Lat and Long exist and are not empty
                     if pd.notna(row.get('Lat')) and pd.notna(row.get('Long')):
-                        # Color code based on Slot
-                        icon_color = "orange" if row['Slot'] == "Morning" else "blue" if row['Slot'] == "Afternoon" else "purple"
-                        
                         folium.Marker(
                             location=[row['Lat'], row['Long']],
-                            popup=f"{row['Slot']}: {row['Activity']}",
-                            tooltip=row['Activity'],
-                            icon=folium.Icon(color=icon_color, icon='info-sign')
+                            popup=row['Activity'],
+                            icon=folium.Icon(color='blue', icon='info-sign')
                         ).add_to(m_daily)
+                        pins_added += 1
                 
-                # Display the map
+                # If no pins found, show the city center marker
+                if pins_added == 0:
+                    folium.Marker(city_center, popup="City Center", icon=folium.Icon(color='gray')).add_to(m_daily)
+                
                 st_folium(m_daily, width=600, height=550, key=f"daily_map_{selected_date}")
