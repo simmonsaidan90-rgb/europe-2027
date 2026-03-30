@@ -4,7 +4,7 @@ from streamlit_calendar import calendar
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import Fullscreen
-from meteostat import Point, Daily
+import meteostat as ms 
 from datetime import datetime
 
 # 1. Page Config
@@ -46,7 +46,7 @@ CITY_COORDS = {
     "Paris": [48.8566, 2.3522]
 }
 
-# --- WEATHER LOGIC ---
+# --- WEATHER LOGIC (Fixed for Meteostat 1.6+) ---
 @st.cache_data
 def get_historical_weather(city, date_obj):
     try:
@@ -55,8 +55,9 @@ def get_historical_weather(city, date_obj):
         coords = CITY_COORDS.get(city)
         if not coords: return None
         
-        location = Point(coords[0], coords[1])
-        data = Daily(location, check_date, check_date)
+        # We use ms.Point and ms.daily (lowercase) now
+        location = ms.Point(coords[0], coords[1])
+        data = ms.daily(location, check_date, check_date)
         data = data.fetch()
         
         if not data.empty:
@@ -65,7 +66,8 @@ def get_historical_weather(city, date_obj):
                 "min": round(data.iloc[0]['tmin'], 1),
                 "max": round(data.iloc[0]['tmax'], 1)
             }
-    except:
+    except Exception as e:
+        # This prevents the app from crashing if Meteostat has an issue
         return None
 
 def get_strategy_tip(city):
