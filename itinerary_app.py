@@ -14,26 +14,47 @@ st.set_page_config(page_title="Europe 2027 Master Plan", layout="wide")
 if 'clicked_event' not in st.session_state:
     st.session_state.clicked_event = None
 
-# --- DATA LOADING ---
+# --- DATA LOADING & CLEANING ---
 @st.cache_data
 def load_data():
     try:
         df = pd.read_csv('itinerary.csv') 
+        # Clean up column names (removes hidden spaces/tabs)
         df.columns = df.columns.str.strip()
         
-        # Clean coordinates
-        if 'Lat' in df.columns and 'Long' in df.columns:
-            df['Lat'] = pd.to_numeric(df['Lat'], errors='coerce')
-            df['Long'] = pd.to_numeric(df['Long'], errors='coerce')
+        # --- COLUMN SAFETY SYNC ---
+        # If these don't exist in the CSV, create them so the app doesn't crash
+        required_cols = {
+            'Duration': 'TBD',
+            'Flexible': 'No',
+            'Notes': '',
+            'City': 'Unknown',
+            'Slot': 'Morning',
+            'Lat': None,
+            'Long': None
+        }
+        for col, default in required_cols.items():
+            if col not in df.columns:
+                df[col] = default
+        
+        # Convert Lat/Long to numeric
+        df['Lat'] = pd.to_numeric(df['Lat'], errors='coerce')
+        df['Long'] = pd.to_numeric(df['Long'], errors='coerce')
             
         # Standardize Dates
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         df = df.dropna(subset=['Date', 'Activity'], how='all')
         df = df.dropna(subset=['Date']) 
         df['Date_Str'] = df['Date'].dt.strftime('%Y-%m-%d')
+        
+        # Final Fill for NaNs in rows
+        df['Notes'] = df['Notes'].fillna('')
+        df['Duration'] = df['Duration'].fillna('TBD')
+        df['Flexible'] = df['Flexible'].fillna('No')
+        
         return df
     except Exception as e:
-        st.error(f"Error loading CSV: {e}")
+        st.error(f"Critical Error loading CSV: {e}")
         return pd.DataFrame()
 
 df = load_data()
@@ -46,16 +67,14 @@ CITY_COORDS = {
     "Paris": [48.8566, 2.3522]
 }
 
-# --- WEATHER LOGIC (Fixed for Meteostat 1.6+) ---
+# --- WEATHER LOGIC ---
 @st.cache_data
 def get_historical_weather(city, date_obj):
     try:
-        # Check the same day/month in 2024 for a reality check
         check_date = datetime(2024, date_obj.month, date_obj.day)
         coords = CITY_COORDS.get(city)
         if not coords: return None
         
-        # We use ms.Point and ms.daily (lowercase) now
         location = ms.Point(coords[0], coords[1])
         data = ms.daily(location, check_date, check_date)
         data = data.fetch()
@@ -66,8 +85,7 @@ def get_historical_weather(city, date_obj):
                 "min": round(data.iloc[0]['tmin'], 1),
                 "max": round(data.iloc[0]['tmax'], 1)
             }
-    except Exception as e:
-        # This prevents the app from crashing if Meteostat has an issue
+    except:
         return None
 
 def get_strategy_tip(city):
@@ -96,15 +114,15 @@ else:
         with col_cal:
             events = []
             for _, row in df.iterrows():
-                icon = {"Morning": "🌅", "Afternoon": "⛅", "Night": "🌙"}.get(row.get('Slot'), "📍")
+                icon = {"Morning": "🌅", "Afternoon": "⛅", "Night": "🌙"}.get(row['Slot'], "📍")
                 events.append({
                     "title": f"{icon} {row['Activity']}",
                     "start": row['Date_Str'], "end": row['Date_Str'], "allDay": True,
                     "extendedProps": {
-                        "notes": row.get('Notes', ''), 
-                        "flex": row.get('Flexible', 'N/A'),
-                        "dur": row.get('Duration', 'TBD'),
-                        "city": row.get('City', 'Unknown'),
+                        "notes": row['Notes'], 
+                        "flex": row['Flexible'],
+                        "dur": row['Duration'],
+                        "city": row['City'],
                         "date_obj": row['Date']
                     }
                 })
@@ -147,7 +165,7 @@ else:
             
             st.subheader(f"Plan for {selected_date_str} in {current_city}")
             
-            # Historical Weather Metric Row
+            # Historical Weather Metrics
             weather = get_historical_weather(current_city, dt_obj)
             if weather:
                 w1, w2, w3 = st.columns(3)
@@ -164,7 +182,7 @@ else:
             with col_list:
                 for _, row in day_data.iterrows():
                     flex_icon = "✅" if str(row['Flexible']).lower() == 'yes' else "🚫"
-                    with st.expander(f"**{row['Slot']}**: {row['Activity']} ({row.get('Duration', 'TBD')})"):
+                    with st.expander(f"**{row['Slot']}**: {row['Activity']} ({row['Duration']})"):
                         st.write(f"**Flexibility:** {flex_icon}")
                         st.write(f"**Notes:** {row['Notes']}")
             
@@ -173,7 +191,7 @@ else:
                 m_daily = folium.Map(location=city_center, zoom_start=13)
                 Fullscreen().add_to(m_daily)
                 for _, row in day_data.iterrows():
-                    if pd.notna(row.get('Lat')) and pd.notna(row.get('Long')):
+                    if pd.notna(row['Lat']) and pd.notna(row['Long']):
                         folium.Marker(
                             [row['Lat'], row['Long']], 
                             popup=row['Activity'],
