@@ -3,5 +3,4 @@ pandas
 folium
 streamlit-folium
 streamlit-calendar
-meteostat
 datetime
