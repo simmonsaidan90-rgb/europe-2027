@@ -1,11 +1,21 @@
-Date,City,Slot,Duration,Activity,Flexible,Type,Notes,Lat,Long
-2027-01-01,Helsinki,Morning,4h,Arrival & Check-in,No,Travel,Check into Hotel St. George.,60.1686,24.9384
-2027-01-01,Helsinki,Afternoon,3h,Design District,Yes,Activity,Explore 19th-century architecture.,60.1631,24.9410
-2027-01-01,Helsinki,Night,2h,Löyly Sauna,Yes,Relax,Traditional Finnish sauna by the sea.,60.1500,24.9281
-2027-01-03,Krakow,Morning,8h,Auschwitz-Birkenau,No,History,Booked tour. Full day emotional commitment.,,
-2027-01-04,Krakow,Morning,3h,Schindler’s Factory,No,History,"In-depth WWII occupation history.",,
-2027-01-06,Prague,Night,2h,Charles Bridge,Yes,Activity,"Less crowded, very atmospheric.",,
-2027-01-07,Prague,Morning,6h,Terezin Day Trip,No,History,WWII Ghetto/Fortress.,,
-2027-01-09,Vienna,Afternoon,2h,Hotel Sacher,No,Relax,Check-in and Sacher Torte.,,
-2027-01-10,Vienna,Afternoon,2h,Flak Tower,No,History,Anti-aircraft tower (Haus des Meeres).,,
-2027-01-11,Vienna,Morning,7h,Mauthausen Memorial,No,History,Full day trip to the quarry and camp.,,
+Date,City,Slot,Duration,Activity,Flexible,Notes,Lat,Long,Time_Fixed,Hist_Temp,Hist_Rain
+2026-12-24,Sydney,Morning,24h,Sydney > Tokyo,No,Flight departure,-33.8688,151.2093,09:00,20.2,0.0
+2026-12-26,Tokyo,Morning,12h,Tokyo > Helsinki,No,Long haul flight,35.6762,139.6503,10:00,8.4,0.0
+2026-12-27,Helsinki,Morning,2h,Helsinki Cathedral,Yes,Senate Square,60.1702,24.9522,09:00,1.3,0.0
+2026-12-27,Helsinki,Morning,1.5h,Finnish Parliament,Yes,Eduskuntatalo,60.1725,24.9333,11:00,1.3,0.0
+2026-12-27,Helsinki,Afternoon,3h,Löyly Sauna,No,Traditional Finnish Sauna,60.1511,24.9311,15:00,1.4,0.0
+2026-12-28,Helsinki,Morning,4h,Helsinki > Krakow,No,Flight to Poland,60.3172,24.9633,09:00,0.9,0.2
+2026-12-29,Krakow,Morning,3h,Old Town Exploration,Yes,St. Mary's Basilica & Square,50.0614,19.9372,10:00,1.3,0.0
+2026-12-29,Krakow,Afternoon,3h,Wawel Castle,Yes,Royal Chambers and Cathedral,50.0547,19.9354,14:00,1.3,0.0
+2026-12-30,Krakow,Morning,8h,Auschwitz-Birkenau,No,Non-negotiable full day trip,50.0274,19.202,08:00,-0.2,0.0
+2026-12-31,Krakow,Morning,4h,Wieliczka Salt Mine,No,UNESCO site underground,49.9831,20.0557,09:00,0.9,0.0
+2026-12-31,Krakow,Afternoon,3h,Schindler's Factory,No,WWII History,50.0475,19.9618,14:00,1.3,0.0
+2027-01-01,Krakow,Morning,6.5h,Krakow > Prague,No,Train journey,50.0677,19.9474,10:00,3.4,9.1
+2027-01-02,Prague,Morning,2h,Saints Cyril & Methodius,Yes,WWII Resistance site,50.0759,14.4172,09:00,5.3,14.2
+2027-01-02,Prague,Morning,1.5h,Charles Bridge,No,11am specific walk,50.0865,14.4114,11:00,5.3,14.2
+2027-01-03,Prague,Morning,3h,Prague Castle,No,9am specific entry,50.0909,14.4005,09:00,9.0,1.7
+2027-01-06,Vienna,Morning,3h,Flak Towers (Augarten),No,Go here first for morning light,48.2256,16.3761,09:00,3.8,18.7
+2027-01-06,Vienna,Afternoon,4h,Military Museum (HGM),No,1pm Taxi from Augarten,48.1848,16.3912,13:00,3.8,18.7
+2027-01-11,Budapest,Afternoon,2h,Hungarian Parliament,No,Booked tour,47.5071,19.0456,14:00,-2.8,0.0
+2027-01-15,Rome,Morning,4h,Vatican City,No,8am early entry,41.9029,12.4534,08:00,10.6,3.3
+2027-01-20,Paris,Afternoon,4h,The Louvre,No,3pm fixed - open late,48.8606,2.3376,15:00,-2.8,0.0
