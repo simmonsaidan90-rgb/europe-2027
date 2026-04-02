@@ -13,6 +13,13 @@ st.set_page_config(page_title="Europe 2027 Master Plan", layout="wide")
 # --- SESSION STATE ---
 if 'clicked_event' not in st.session_state:
     st.session_state.clicked_event = None
+# Tab 2: which city is currently drilled into (None = overview)
+if 'tab2_selected_city' not in st.session_state:
+    st.session_state.tab2_selected_city = None
+if 'tab2_map_center' not in st.session_state:
+    st.session_state.tab2_map_center = None
+if 'tab2_map_zoom' not in st.session_state:
+    st.session_state.tab2_map_zoom = 13
 # Tab 3: track which activity is focused on the map, and the last selected date
 if 'tab3_map_center' not in st.session_state:
     st.session_state.tab3_map_center = None
@@ -41,6 +48,7 @@ SLOT_COLORS = {
     "afternoon": {"folium": "blue",       "hex": "#0d6efd"},
     "night":     {"folium": "darkpurple", "hex": "#6f42c1"},
     "default":   {"folium": "red",        "hex": "#dc3545"},
+    "travel":    {"folium": "red",        "hex": "#dc3545"},  # transit legs: always red
 }
 
 # --- GLOBAL HELPERS ---
@@ -100,9 +108,11 @@ def load_data():
         df = pd.read_csv('itinerary.csv')
         df.columns = df.columns.str.strip()
 
-        for col in ['Duration', 'Flexible', 'Slot', 'Notes', 'Lat', 'Long']:
+        for col in ['Duration', 'Flexible', 'Slot', 'Notes', 'Lat', 'Long', 'Type']:
             if col not in df.columns:
                 df[col] = "N/A"
+        # Back-fill Type for any rows that weren't tagged in the CSV
+        df['Type'] = df['Type'].fillna('Activity')
 
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         df = df.dropna(subset=['Date'])
@@ -122,6 +132,35 @@ def load_data():
         return pd.DataFrame()
 
 df = load_data()
+
+# --- SIDEBAR: DATA TOOLS ---
+with st.sidebar:
+    st.header("🛠️ Data Tools")
+
+    # Detect rows that have coordinates but are missing weather data
+    has_coords = df['Lat'].notna() & df['Long'].notna()
+    weather_cols_present = 'Hist_Temp' in df.columns and 'Hist_Rain' in df.columns
+    missing_weather = has_coords & (df['Hist_Temp'].isna() if weather_cols_present else True)
+    missing_count = int(missing_weather.sum())
+
+    if missing_count > 0:
+        st.warning(f"🌡️ **{missing_count} activities** have coordinates but no weather data yet.")
+    else:
+        st.success("🌡️ Weather data is complete.")
+
+    col_run, col_force = st.columns(2)
+    run_weather = col_run.button("Update missing", key="wx_missing", disabled=(missing_count == 0))
+    force_weather = col_force.button("Re-fetch all", key="wx_force")
+
+    if run_weather or force_weather:
+        from weather_updater import update_csv
+        with st.spinner(f"Fetching 5-year averages (2020–2024)… this takes ~1 min for a full run."):
+            update_csv(csv_path='itinerary.csv', force=force_weather)
+        st.cache_data.clear()
+        st.rerun()
+
+    st.divider()
+    st.caption("Weather data: Open-Meteo archive (ERA5), 5-year mean 2020–2024.")
 
 # Derive city centre coordinates from the CSV (median of all activity lat/longs per city).
 # This means any city added to the itinerary automatically appears on the overview map.
@@ -158,14 +197,25 @@ if not df.empty:
                 end_dt = pd.to_datetime(start_iso) + pd.Timedelta(hours=dur_val)
                 end_iso = end_dt.strftime('%Y-%m-%dT%H:%M:%S')
 
-                icon = {"Morning": "🌅", "Afternoon": "⛅", "Night": "🌙"}.get(row['Slot'], "📍")
+                is_travel = str(row.get('Type', '')).strip().lower() == 'travel'
+                if is_travel:
+                    activity_lower = str(row['Activity']).lower()
+                    if 'train' in activity_lower or 'rail' in activity_lower:
+                        icon = "🚆"
+                    elif 'bus' in activity_lower or 'coach' in activity_lower:
+                        icon = "🚌"
+                    else:
+                        icon = "✈️"
+                else:
+                    icon = {"Morning": "🌅", "Afternoon": "⛅", "Night": "🌙"}.get(row['Slot'], "📍")
+                bg_color = SLOT_COLORS["travel"]["hex"] if is_travel else get_event_color(row['Slot'])
 
                 events.append({
                     "title": f"{icon} {row['Activity']}",
                     "start": start_iso,
                     "end": end_iso,
                     "allDay": False,
-                    "backgroundColor": get_event_color(row['Slot']),  # CSS hex color
+                    "backgroundColor": bg_color,
                     "extendedProps": {
                         "notes": row['Notes'],
                         "flex": row['Flexible'],
@@ -198,7 +248,9 @@ if not df.empty:
 
                 st.markdown(f"### {e['title']}")
                 st.write(f"**📍 {p.get('city')}** | **⏳ {p.get('dur')}**")
-                st.write(f"**Flexibility:** {p.get('flex')}")
+                flex_val = str(p.get('flex', '')).strip().lower()
+                flex_icon = "✅ Yes" if flex_val == 'yes' else "🚫 No"
+                st.write(f"**Flexibility:** {flex_icon}")
                 st.info(p.get('notes'))
 
                 if st.button("Clear Selection"):
@@ -207,31 +259,131 @@ if not df.empty:
             else:
                 st.write("💡 *Click an event on the calendar to see deep-dive details here.*")
 
-    # --- TAB 2: OVERVIEW MAP ---
+    # --- TAB 2: OVERVIEW / CITY DRILL-DOWN MAP ---
     with tab2:
-        m_full = build_base_map(
-            MAP_CONFIG["overview_center"][0],
-            MAP_CONFIG["overview_center"][1],
-            zoom=MAP_CONFIG["overview_zoom"]
-        )
         MAP_EXCLUDE_CITIES = {"Sydney"}
         activity_counts = df.groupby('City')['Activity'].count()
-        for city, loc in CITY_COORDS.items():
-            if city in MAP_EXCLUDE_CITIES:
-                continue
-            count = activity_counts.get(city, 0)
-            folium.Marker(
-                loc,
-                popup=folium.Popup(f"<b>{city}</b><br>{count} activities", max_width=150),
-                tooltip=f"{city} ({count} activities)",
-                icon=folium.Icon(color='red', icon='info-sign')
-            ).add_to(m_full)
-        render_map(m_full, key="global_map")
+
+        selected_city = st.session_state.tab2_selected_city
+
+        if selected_city is None:
+            # ── OVERVIEW MODE ──────────────────────────────────────────────
+            st.caption("Click a city pin to explore its activities.")
+            m_full = build_base_map(
+                MAP_CONFIG["overview_center"][0],
+                MAP_CONFIG["overview_center"][1],
+                zoom=MAP_CONFIG["overview_zoom"]
+            )
+            for city, loc in CITY_COORDS.items():
+                if city in MAP_EXCLUDE_CITIES:
+                    continue
+                count = activity_counts.get(city, 0)
+                folium.Marker(
+                    loc,
+                    # tooltip is the city name only — used to detect the click below
+                    tooltip=city,
+                    popup=folium.Popup(f"<b>{city}</b><br>{count} activities<br><i>Click to explore</i>", max_width=180),
+                    icon=folium.Icon(color='red', icon='info-sign')
+                ).add_to(m_full)
+
+            result = render_map(m_full, key="global_map_overview")
+
+            # Detect city pin click via the tooltip text returned by st_folium
+            clicked_tooltip = (result or {}).get('last_object_clicked_tooltip')
+            if clicked_tooltip and clicked_tooltip in CITY_COORDS:
+                st.session_state.tab2_selected_city = clicked_tooltip
+                st.rerun()
+
+        else:
+            # ── CITY DRILL-DOWN MODE ───────────────────────────────────────
+            col_hdr, col_back = st.columns([4, 1])
+            col_hdr.subheader(f"📍 {selected_city}")
+            if col_back.button("← Overview", key="tab2_back"):
+                st.session_state.tab2_selected_city = None
+                st.session_state.tab2_map_center = None
+                st.session_state.tab2_map_zoom = 15
+                st.rerun()
+
+            city_data = df[(df['City'] == selected_city) & (df['Type'] != 'Travel')].copy()
+            city_loc = CITY_COORDS[selected_city]
+
+            # Split into map column and compact activity list column
+            col_map, col_list = st.columns([3, 1])
+
+            with col_map:
+                has_pins = city_data['Lat'].notna().any() and city_data['Long'].notna().any()
+
+                if not has_pins:
+                    st.info(f"No individual activity coordinates have been added for {selected_city} yet. "
+                            f"Add Lat/Long values to the CSV rows for this city to see activity pins here.")
+                else:
+                    # Use focused centre if set, otherwise default to city centre
+                    map_center = st.session_state.tab2_map_center or city_loc
+                    map_zoom = st.session_state.tab2_map_zoom
+
+                    m_city = build_base_map(map_center[0], map_center[1], zoom=map_zoom)
+
+                    for _, row in city_data.iterrows():
+                        if pd.notna(row['Lat']) and pd.notna(row['Long']):
+                            flex_icon = "✅" if str(row['Flexible']).strip().lower() == 'yes' else "🚫"
+                            friendly_date = pd.to_datetime(row['Date_Str']).strftime('%-d %b %y, %a')
+                            is_focused = (
+                                st.session_state.tab2_map_center is not None
+                                and st.session_state.tab2_map_center == [row['Lat'], row['Long']]
+                            )
+                            popup_html = (
+                                f"<b>{row['Activity']}</b><br>"
+                                f"📅 {friendly_date}<br>"
+                                f"⏳ {row['Duration']}<br>"
+                                f"{flex_icon} Flexible: {row['Flexible']}<br>"
+                                f"<hr style='margin:4px 0'>"
+                                f"<small>{row['Notes']}</small>"
+                            )
+                            folium.Marker(
+                                [row['Lat'], row['Long']],
+                                tooltip=f"{row['Slot']}: {row['Activity']}",
+                                popup=folium.Popup(popup_html, max_width=260),
+                                icon=folium.Icon(
+                                    color=get_marker_color(row['Slot']),
+                                    icon='star' if is_focused else 'info-sign'
+                                )
+                            ).add_to(m_city)
+
+                    if st.session_state.tab2_map_center is not None:
+                        if st.button("🔄 Reset map view", key="tab2_reset_map"):
+                            st.session_state.tab2_map_center = None
+                            st.session_state.tab2_map_zoom = 13
+                            st.rerun()
+
+                    render_map(m_city, key=f"city_map_{selected_city}_{map_zoom}_{map_center[0]}")
+
+            with col_list:
+                st.caption(f"{len(city_data)} activities · 🌅 Morning · ⛅ Afternoon · 🌙 Night")
+
+                for date_str, group in city_data.groupby('Date_Str', sort=True):
+                    friendly_date = pd.to_datetime(date_str).strftime('%-d %b %y, %a')
+                    st.markdown(f"###### {friendly_date}")
+                    for idx, (_, row) in enumerate(group.iterrows()):
+                        slot_icon = {"Morning": "🌅", "Afternoon": "⛅", "Night": "🌙"}.get(row['Slot'], "📍")
+                        flex_icon = "✅" if str(row['Flexible']).strip().lower() == 'yes' else "🚫"
+                        has_coords = pd.notna(row['Lat']) and pd.notna(row['Long'])
+                        c_name, c_btn = st.columns([5, 1])
+                        c_name.markdown(f"{slot_icon} {flex_icon} {row['Activity']}")
+                        if has_coords:
+                            if c_btn.button("📍", key=f"tab2_focus_{date_str}_{idx}", help="Focus map on this activity"):
+                                st.session_state.tab2_map_center = [row['Lat'], row['Long']]
+                                st.session_state.tab2_map_zoom = MAP_CONFIG["focused_zoom"]
+                                st.rerun()
 
     # --- TAB 3: DAILY WALKABILITY & WEATHER ---
     with tab3:
         st.header("📍 Daily Deep Dive")
-        selected_date = st.selectbox("Select Date:", sorted(df['Date_Str'].unique()), key="date_select_tab3")
+        selected_date = st.selectbox(
+            "Select Date:",
+            sorted(df['Date_Str'].unique()),
+            format_func=lambda d: pd.to_datetime(d).strftime('%-d %b %y, %a'),
+            key="date_select_tab3"
+        )
         day_data = df[df['Date_Str'] == selected_date].copy()
 
         # Reset map focus whenever the date changes
@@ -276,8 +428,10 @@ if not df.empty:
             with col_list:
                 for idx, (_, row) in enumerate(day_data.iterrows()):
                     slot_color = get_event_color(row['Slot'])
-                    with st.expander(f"**{row['Slot']}**: {row['Activity']}"):
-                        st.write(f"**Duration:** {row['Duration']} | **Flex:** {row['Flexible']}")
+                    with st.expander(f"**{row['Slot']}**: {row['Activity']} ({row['Duration']})"):
+                        flex_val = str(row['Flexible']).strip().lower()
+                        flex_icon = "✅ Yes" if flex_val == 'yes' else "🚫 No"
+                        st.write(f"**Duration:** {row['Duration']} | **Flex:** {flex_icon}")
                         if pd.notna(row['Notes']):
                             st.info(row['Notes'])
                         # Focus button: zooms the map to this activity's location
@@ -312,7 +466,9 @@ if not df.empty:
                     ).add_to(m_daily)
 
                 for _, row in day_data.iterrows():
-                    if pd.notna(row['Lat']) and pd.notna(row['Long']) and "Hotel" not in str(row['Activity']):
+                    if (pd.notna(row['Lat']) and pd.notna(row['Long'])
+                            and "Hotel" not in str(row['Activity'])
+                            and str(row.get('Type', '')).strip().lower() != 'travel'):
                         is_focused = (
                             st.session_state.tab3_map_center is not None
                             and st.session_state.tab3_map_center == [row['Lat'], row['Long']]
