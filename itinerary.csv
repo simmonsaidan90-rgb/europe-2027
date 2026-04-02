@@ -1,61 +1,61 @@
-Date,City,Slot,Duration,Activity,Flexible,Notes,Lat,Long,Time_Fixed,Hist_Temp,Hist_Rain
-2026-12-24,Sydney,Morning,10h,Sydney > Tokyo,No,Flight departure,-33.8688,151.2093,09:00,20.2,0.0
-2026-12-25,Tokyo,Morning,2h,Meiji Shrine,Yes,Peaceful forested shrine in the city. Everything is open on Christmas Day in Japan.,35.6764,139.6993,09:00,8.4,0.0
-2026-12-25,Tokyo,Afternoon,3h,Shibuya Crossing & Harajuku,Yes,Iconic scramble crossing + Takeshita Street fashion. Japan does not close for Christmas.,35.6595,139.7004,14:00,8.4,0.0
-2026-12-26,Tokyo,Morning,12h,Tokyo > Helsinki,No,Long haul flight,35.6762,139.6503,10:00,8.4,0.0
-2026-12-27,Helsinki,Morning,2h,Helsinki Cathedral,Yes,Senate Square,60.1702,24.9522,09:00,1.3,0.0
-2026-12-27,Helsinki,Morning,1.5h,Finnish Parliament,Yes,Eduskuntatalo,60.1725,24.9333,11:00,1.3,0.0
-2026-12-27,Helsinki,Afternoon,3h,Löyly Sauna,No,Pre-book essential. Architectural sauna masterpiece on the waterfront. Traditional Finnish experience.,60.1511,24.9311,15:00,1.4,0.0
-2026-12-28,Helsinki,Morning,4h,Helsinki > Krakow,No,Flight to Poland,60.3172,24.9633,09:00,0.9,0.2
-2026-12-29,Krakow,Morning,3h,Old Town Exploration,Yes,St. Mary's Basilica & Square,50.0614,19.9372,10:00,1.3,0.0
-2026-12-29,Krakow,Afternoon,3h,Wawel Castle,Yes,Royal Chambers and Cathedral,50.0547,19.9354,14:00,1.3,0.0
-2026-12-29,Krakow,Night,2h,Schindler's Factory,No,WWII History. Book well in advance – sells out fast. ~10 min walk from Wawel Castle. Closes 20:00.,50.0475,19.9618,17:30,1.3,0.0
-2026-12-30,Krakow,Morning,8h,Auschwitz-Birkenau,No,Non-negotiable full day. BOOK 7:30–8:00 AM tour in advance. Sunset 3:45 PM in winter – morning light essential for Birkenau.,50.0274,19.202,08:00,-0.2,0.0
-2026-12-31,Krakow,Morning,4h,Wieliczka Salt Mine,No,UNESCO site underground,49.9831,20.0557,09:00,0.9,0.0
-2026-12-31,Krakow,Night,3h,New Year's Eve – Rynek Główny,Yes,"Massive free outdoor concert & market at Europe's largest medieval square. Festive, safe, very cheap vs. Western Europe.",50.0614,19.9372,21:00,0.9,0.0
-2027-01-01,Krakow,Morning,6.5h,Krakow > Prague,No,Train journey,50.0677,19.9474,10:00,3.4,9.1
-2027-01-02,Prague,Morning,2h,Saints Cyril & Methodius,Yes,Operation Anthropoid crypt – where Czech paratroopers made their final stand after assassinating Reinhard Heydrich. Essential WWII site.,50.0759,14.4172,09:00,5.3,14.2
-2027-01-02,Prague,Morning,1.5h,Charles Bridge,No,11am specific walk. One of the most romantic spots in Europe – far fewer crowds in winter mornings.,50.0865,14.4114,11:00,5.3,14.2
-2027-01-02,Prague,Afternoon,2h,Old Town Square & Astronomical Clock,Yes,Astronomical Clock chimes on the hour. Gothic & Baroque architecture. Charles Bridge area in the afternoon.,50.0874,14.4213,14:00,5.3,14.2
-2027-01-03,Prague,Morning,3h,Prague Castle,No,9am early entry. Largest ancient castle in the world. Golden Lane & St Vitus Cathedral inside.,50.0909,14.4005,09:00,9.0,1.7
-2027-01-03,Prague,Afternoon,2.5h,Jewish Quarter (Josefov),Yes,One of Europe's best-preserved Jewish quarters. Old Jewish Cemetery & Pinkas Synagogue. Powerful Holocaust memorial inscriptions.,50.0905,14.4186,13:00,9.0,1.7
-2027-01-04,Prague,Morning,8h,Terezin (Theresienstadt) Day Trip,No,"Bus ~1 hour each way from Prague. Nazi ""model"" ghetto used for Red Cross propaganda; brutal transit camp to Auschwitz. Takes most of the day. Essential WWII site.",50.5115,14.149,08:00,5.0,5.0
-2027-01-05,Vienna,Morning,4.5h,Prague > Vienna (Railjet Train),No,"Direct Railjet service. Depart ~08:00, arrive Vienna Hauptbahnhof ~12:30 PM.",48.1851,16.3761,08:00,3.8,18.7
-2027-01-05,Vienna,Night,2h,Evening Walk: Graben & Kohlmarkt,Yes,Upscale pedestrian streets near the Hofburg. Beautifully lit in winter. Gentle arrival evening activity.,48.2088,16.3693,19:00,3.8,18.7
-2027-01-06,Vienna,Morning,2h,Flak Towers (Augarten),No,Go here first for morning light,48.2256,16.3761,09:00,3.8,18.7
-2027-01-06,Vienna,Morning,1.5h,Hofburg Palace & Imperial Treasury,Yes,Hitler announced the Anschluss (Austria's annexation) from the Hofburg balcony in 1938. Imperial Crown Jewels in the Treasury. 30-min buffer from Flak Towers for taxi travel.,48.2065,16.3643,11:30,3.8,18.7
-2027-01-06,Vienna,Afternoon,4h,Military Museum (HGM),No,1pm Taxi from Augarten,48.1848,16.3912,13:00,3.8,18.7
-2027-01-07,Vienna,Morning,8h,Mauthausen Concentration Camp,No,Full day – emotional and physical commitment. ~2hr drive from Vienna (book tour or hire car). Back by ~5:00 PM. Do not plan anything after. Allow emotional recovery time.,48.2582,14.5007,08:00,3.0,10.0
-2027-01-08,Vienna,Morning,2h,Austrian Parliament Building,No,Pre-book tour. Reopened after major renovation. Aidan specifically wants Parliament tours. Go in the morning.,48.2066,16.3607,10:00,3.8,18.7
-2027-01-08,Vienna,Afternoon,2h,Sisi Museum & Imperial Apartments,Yes,Inside the Hofburg complex. Empress Elisabeth exhibits. Afterward: Sacher Torte at Café Sacher or shop Kärntner Straße.,48.2065,16.3643,13:00,3.8,18.7
-2027-01-09,Budapest,Morning,2.5h,Vienna > Budapest (Train),No,Morning train (~09:00–10:00). Arrive Budapest by lunchtime. Relaxed final morning in Vienna.,47.5007,19.0845,09:00,0.5,2.0
-2027-01-09,Budapest,Afternoon,3h,Gellért Thermal Baths,Yes,On the Buda side. Art Nouveau masterpiece. Soak away travel fatigue after Vienna. Great decompression activity.,47.4865,19.0527,14:00,0.5,2.0
-2027-01-10,Budapest,Morning,2h,Dohány Street Synagogue & Jewish Quarter,No,CLOSED SATURDAYS – Sunday visit is essential. Largest synagogue in Europe. Holocaust memorial garden within the complex.,47.498,19.0604,10:00,-1.0,1.0
-2027-01-10,Budapest,Afternoon,3h,House of Terror Museum,No,CLOSED MONDAYS – must visit on Sunday (Jan 10). Former HQ of the Nazi Arrow Cross Party & Communist secret police. On Andrássy Avenue (Pest side) – easy walk from the Synagogue.,47.5072,19.0615,13:00,-1.0,1.0
-2027-01-10,Budapest,Night,1.5h,Shoes on the Danube Bank & Promenade,Yes,Deeply moving WWII memorial. 60 pairs of iron shoes – Jews shot into the Danube 1944–45. Best visited at dusk as the city lights reflect on the river.,47.5071,19.0455,17:00,-1.0,1.0
-2027-01-11,Budapest,Morning,2h,Hospital in the Rock,Yes,"Secret nuclear bunker & WWII field hospital carved under Buda Castle. Open 7 days a week. Start Buda side, then cross river for Parliament.",47.4982,19.0382,10:00,-2.8,0.0
-2027-01-11,Budapest,Afternoon,2h,Hungarian Parliament,No,Booked tour. Cross from Buda side after Hospital in the Rock. Note: House of Terror is CLOSED MONDAYS – do not attempt on this day.,47.5071,19.0456,14:00,-2.8,0.0
-2027-01-11,Budapest,Night,3h,Széchenyi Thermal Baths,Yes,Evening soak – floating in 38°C water while cold air surrounds you is a bucket-list experience. Take M1 underground line from Parliament area. Book in advance.,47.5193,19.0793,20:00,-2.8,0.0
-2027-01-12,Rome,Morning,2h,Budapest > Rome (Flight),No,Direct flight BUD → FCO. Budget carriers (Wizz Air / Ryanair). ~1h 40m. Vibe shift: likely ~13°C and sunny.,41.9029,12.4534,09:00,10.6,5.0
-2027-01-12,Rome,Night,2h,Evening Walk: Campo de' Fiori & Trastevere,Yes,Vibrant piazza & medieval neighbourhood. Great for a first Rome dinner. Alternative: Piazza del Popolo.,41.8955,12.4723,19:00,10.6,5.0
-2027-01-13,Rome,Morning,3h,Colosseum,No,Book skip-the-line tickets in advance. January = minimal crowds. Allow 2–3 hours inside.,41.8902,12.4922,09:00,10.6,5.0
-2027-01-13,Rome,Afternoon,2h,Roman Forum & Palatine Hill,Yes,Combined ticket with Colosseum. Walk the ancient road of emperors. Palatine Hill has panoramic views.,41.8925,12.4853,13:00,10.6,5.0
-2027-01-14,Rome,Morning,8h,Pompeii Day Trip,No,"High-speed Frecciarossa to Naples Centrale (1h 15m), then Circumvesuviana train to Pompeii Scavi (35m). Entirely outdoors – dress warmly. Mid-January = near-empty site. Book with tour provider.",40.751,14.487,07:00,11.0,5.0
-2027-01-15,Rome,Morning,4h,Vatican City,No,8am early entry. Book Vatican Museums + Sistine Chapel in advance. Arrive early to beat crowds even in January.,41.9029,12.4534,08:00,10.6,3.3
-2027-01-15,Rome,Afternoon,1.5h,Pantheon,Yes,Remarkably preserved ancient Roman temple. Book entry in advance (small fee). 5 min walk from Piazza Navona.,41.8986,12.4769,13:00,10.6,3.3
-2027-01-15,Rome,Night,1h,Trevi Fountain,Yes,Evening visit after dinner nearby. Much less crowded at night in January. Toss a coin.,41.9009,12.4833,20:00,10.6,3.3
-2027-01-16,Rome,Morning,3h,Fosse Ardeatine Memorial,Yes,WWII massacre site – 335 Italians executed by Nazis in 1944. Deeply moving. Can combine with nearby Museum of the Liberation of Rome.,41.8491,12.4896,10:00,10.6,3.0
-2027-01-16,Rome,Afternoon,3h,Rome Buffer / Shopping (Saldi),Yes,Winter Sales (Saldi) in full swing. Via dei Condotti (near Spanish Steps) for luxury fashion. Or wander Trastevere for a final Italian afternoon.,41.9058,12.4822,14:00,10.6,3.0
-2027-01-17,Paris,Morning,2h,Rome > Paris (Flight),No,Short flight FCO → CDG or ORY. Check into Saint-Germain-des-Prés (6th Arrondissement).,48.8566,2.3522,09:00,5.5,4.0
-2027-01-17,Paris,Night,2h,Evening Walk: Seine & Notre-Dame,Yes,Gentle arrival evening. Notre-Dame restoration ongoing – stunning to view from Pont de l'Archevêché. Walk along the Seine to dinner in Saint-Germain.,48.853,2.3499,19:00,5.5,4.0
-2027-01-18,Paris,Morning,2h,Champs-Élysées & Arc de Triomphe,Yes,Climb the Arc for panoramic Paris views. Far less crowded in January. Avenue lined with chestnut trees.,48.8738,2.295,10:00,5.5,4.0
-2027-01-18,Paris,Afternoon,3h,Winter Sales Shopping (Soldes),Yes,Soldes (Winter Sales) in full swing. Galeries Lafayette on Haussmann or Samaritaine near the Louvre – both exceptional.,48.873,2.3424,14:00,5.5,4.0
-2027-01-18,Paris,Night,2h,Montmartre & Sacré-Cœur,Yes,Best view over Paris at night. Bohemian village atmosphere with cobblestoned streets. Great for dinner in the neighbourhood.,48.8867,2.3431,19:00,5.5,4.0
-2027-01-19,Paris,Morning,7h,Palace of Versailles (Day Trip),No,RER C train from Paris (~35 mins). Winter perk: Hall of Mirrors is spectacular with a fraction of the summer crowd. Book timed entry in advance.,48.8049,2.1204,09:00,5.5,4.0
-2027-01-20,Paris,Morning,3h,Musée d'Orsay,Yes,"World-class Impressionist collection (Monet, Renoir, Van Gogh). Sleep in first – visit mid-morning. Often more rewarding than the Louvre and far less exhausting.",48.86,2.3266,11:00,5.5,2.0
-2027-01-20,Paris,Afternoon,4h,The Louvre,No,3pm fixed - open late,48.8606,2.3376,15:00,-2.8,0.0
-2027-01-20,Paris,Night,2h,Le Marais & Mémorial de la Shoah,Yes,Trendy historic neighbourhood. The Mémorial de la Shoah (Holocaust Museum) is here – powerful WWII site that fits the trip theme perfectly. Great restaurants for dinner after.,48.8558,2.357,20:00,5.5,2.0
-2027-01-21,Paris,Morning,3h,Les Invalides (Musée de l'Armée),No,Napoleon's Tomb + world-class WWII & Liberation of Paris exhibits. Essential for the trip's WWII theme. Included in Museum Pass.,48.8553,2.3122,10:00,5.5,2.0
-2027-01-21,Paris,Afternoon,3h,Shopping (Soldes – Final Day),Yes,Last chance for winter sales. Galeries Lafayette or Samaritaine. Also consider Rue du Faubourg Saint-Honoré for luxury boutiques.,48.873,2.3424,13:00,5.5,2.0
-2027-01-21,Paris,Night,2h,Eiffel Tower (Illuminated),Yes,Farewell Paris moment. Light show sparkling on the hour after dark. View from Trocadéro or the Champ de Mars lawn.,48.8584,2.2945,20:00,5.5,2.0
-2027-01-22,Paris,Morning,12h,Paris > Sydney (Departure),No,Depart from CDG. Long-haul home. Check out of hotel and head to airport.,49.0097,2.5479,09:00,5.5,2.0
+Date,City,Slot,Duration,Activity,Flexible,Notes,Lat,Long,Time_Fixed,Hist_Temp,Hist_Rain,Type
+2026-12-24,Sydney,Morning,10h,Sydney > Tokyo,No,Flight departure,-33.8688,151.2093,09:00,20.2,0.0,Travel
+2026-12-25,Tokyo,Morning,2h,Meiji Shrine,Yes,Peaceful forested shrine in the city. Everything is open on Christmas Day in Japan.,35.6764,139.6993,09:00,8.4,0.0,Activity
+2026-12-25,Tokyo,Afternoon,3h,Shibuya Crossing & Harajuku,Yes,Iconic scramble crossing + Takeshita Street fashion. Japan does not close for Christmas.,35.6595,139.7004,14:00,8.4,0.0,Activity
+2026-12-26,Tokyo,Morning,12h,Tokyo > Helsinki,No,Long haul flight,35.6762,139.6503,10:00,8.4,0.0,Travel
+2026-12-27,Helsinki,Morning,2h,Helsinki Cathedral,Yes,Senate Square,60.1702,24.9522,09:00,1.3,0.0,Activity
+2026-12-27,Helsinki,Morning,1.5h,Finnish Parliament,Yes,Eduskuntatalo,60.1725,24.9333,11:00,1.3,0.0,Activity
+2026-12-27,Helsinki,Afternoon,3h,Löyly Sauna,No,Pre-book essential. Architectural sauna masterpiece on the waterfront. Traditional Finnish experience.,60.1511,24.9311,15:00,1.4,0.0,Activity
+2026-12-28,Helsinki,Morning,4h,Helsinki > Krakow,No,Flight to Poland,60.3172,24.9633,09:00,0.9,0.2,Travel
+2026-12-29,Krakow,Morning,3h,Old Town Exploration,Yes,St. Mary's Basilica & Square,50.0614,19.9372,10:00,1.3,0.0,Activity
+2026-12-29,Krakow,Afternoon,3h,Wawel Castle,Yes,Royal Chambers and Cathedral,50.0547,19.9354,14:00,1.3,0.0,Activity
+2026-12-29,Krakow,Night,2h,Schindler's Factory,No,WWII History. Book well in advance – sells out fast. ~10 min walk from Wawel Castle. Closes 20:00.,50.0475,19.9618,17:30,1.3,0.0,Activity
+2026-12-30,Krakow,Morning,8h,Auschwitz-Birkenau,No,Non-negotiable full day. BOOK 7:30–8:00 AM tour in advance. Sunset 3:45 PM in winter – morning light essential for Birkenau.,50.0274,19.202,08:00,-0.2,0.0,Activity
+2026-12-31,Krakow,Morning,4h,Wieliczka Salt Mine,No,UNESCO site underground,49.9831,20.0557,09:00,0.9,0.0,Activity
+2026-12-31,Krakow,Night,3h,New Year's Eve – Rynek Główny,Yes,"Massive free outdoor concert & market at Europe's largest medieval square. Festive, safe, very cheap vs. Western Europe.",50.0614,19.9372,21:00,0.9,0.0,Activity
+2027-01-01,Krakow,Morning,6.5h,Krakow > Prague,No,Train journey,50.0677,19.9474,10:00,3.4,9.1,Travel
+2027-01-02,Prague,Morning,2h,Saints Cyril & Methodius,Yes,Operation Anthropoid crypt – where Czech paratroopers made their final stand after assassinating Reinhard Heydrich. Essential WWII site.,50.0759,14.4172,09:00,5.3,14.2,Activity
+2027-01-02,Prague,Morning,1.5h,Charles Bridge,No,11am specific walk. One of the most romantic spots in Europe – far fewer crowds in winter mornings.,50.0865,14.4114,11:00,5.3,14.2,Activity
+2027-01-02,Prague,Afternoon,2h,Old Town Square & Astronomical Clock,Yes,Astronomical Clock chimes on the hour. Gothic & Baroque architecture. Charles Bridge area in the afternoon.,50.0874,14.4213,14:00,5.3,14.2,Activity
+2027-01-03,Prague,Morning,3h,Prague Castle,No,9am early entry. Largest ancient castle in the world. Golden Lane & St Vitus Cathedral inside.,50.0909,14.4005,09:00,9.0,1.7,Activity
+2027-01-03,Prague,Afternoon,2.5h,Jewish Quarter (Josefov),Yes,One of Europe's best-preserved Jewish quarters. Old Jewish Cemetery & Pinkas Synagogue. Powerful Holocaust memorial inscriptions.,50.0905,14.4186,13:00,9.0,1.7,Activity
+2027-01-04,Prague,Morning,8h,Terezin (Theresienstadt) Day Trip,No,"Bus ~1 hour each way from Prague. Nazi ""model"" ghetto used for Red Cross propaganda; brutal transit camp to Auschwitz. Takes most of the day. Essential WWII site.",50.5115,14.149,08:00,5.0,5.0,Activity
+2027-01-05,Vienna,Morning,4.5h,Prague > Vienna (Railjet Train),No,"Direct Railjet service. Depart ~08:00, arrive Vienna Hauptbahnhof ~12:30 PM.",48.1851,16.3761,08:00,3.8,18.7,Travel
+2027-01-05,Vienna,Night,2h,Evening Walk: Graben & Kohlmarkt,Yes,Upscale pedestrian streets near the Hofburg. Beautifully lit in winter. Gentle arrival evening activity.,48.2088,16.3693,19:00,3.8,18.7,Activity
+2027-01-06,Vienna,Morning,2h,Flak Towers (Augarten),No,Go here first for morning light,48.2256,16.3761,09:00,3.8,18.7,Activity
+2027-01-06,Vienna,Morning,1.5h,Hofburg Palace & Imperial Treasury,Yes,Hitler announced the Anschluss (Austria's annexation) from the Hofburg balcony in 1938. Imperial Crown Jewels in the Treasury. 30-min buffer from Flak Towers for taxi travel.,48.2065,16.3643,11:30,3.8,18.7,Activity
+2027-01-06,Vienna,Afternoon,4h,Military Museum (HGM),No,1pm Taxi from Augarten,48.1848,16.3912,13:00,3.8,18.7,Activity
+2027-01-07,Vienna,Morning,8h,Mauthausen Concentration Camp,No,Full day – emotional and physical commitment. ~2hr drive from Vienna (book tour or hire car). Back by ~5:00 PM. Do not plan anything after. Allow emotional recovery time.,48.2582,14.5007,08:00,3.0,10.0,Activity
+2027-01-08,Vienna,Morning,2h,Austrian Parliament Building,No,Pre-book tour. Reopened after major renovation. Go in the morning.,48.2066,16.3607,10:00,3.8,18.7,Activity
+2027-01-08,Vienna,Afternoon,2h,Sisi Museum & Imperial Apartments,Yes,Inside the Hofburg complex. Empress Elisabeth exhibits. Afterward: Sacher Torte at Café Sacher or shop Kärntner Straße.,48.2065,16.3643,13:00,3.8,18.7,Activity
+2027-01-09,Budapest,Morning,2.5h,Vienna > Budapest (Train),No,Morning train (~09:00–10:00). Arrive Budapest by lunchtime. Relaxed final morning in Vienna.,47.5007,19.0845,09:00,0.5,2.0,Travel
+2027-01-09,Budapest,Afternoon,3h,Gellért Thermal Baths,Yes,On the Buda side. Art Nouveau masterpiece. Soak away travel fatigue after Vienna. Great decompression activity.,47.4865,19.0527,14:00,0.5,2.0,Activity
+2027-01-10,Budapest,Morning,2h,Dohány Street Synagogue & Jewish Quarter,No,CLOSED SATURDAYS – Sunday visit is essential. Largest synagogue in Europe. Holocaust memorial garden within the complex.,47.498,19.0604,10:00,-1.0,1.0,Activity
+2027-01-10,Budapest,Afternoon,3h,House of Terror Museum,No,CLOSED MONDAYS – must visit on Sunday (Jan 10). Former HQ of the Nazi Arrow Cross Party & Communist secret police. On Andrássy Avenue (Pest side) – easy walk from the Synagogue.,47.5072,19.0615,13:00,-1.0,1.0,Activity
+2027-01-10,Budapest,Night,1.5h,Shoes on the Danube Bank & Promenade,Yes,Deeply moving WWII memorial. 60 pairs of iron shoes – Jews shot into the Danube 1944–45. Best visited at dusk as the city lights reflect on the river.,47.5071,19.0455,17:00,-1.0,1.0,Activity
+2027-01-11,Budapest,Morning,2h,Hospital in the Rock,Yes,"Secret nuclear bunker & WWII field hospital carved under Buda Castle. Open 7 days a week. Start Buda side, then cross river for Parliament.",47.4982,19.0382,10:00,-2.8,0.0,Activity
+2027-01-11,Budapest,Afternoon,2h,Hungarian Parliament,No,Booked tour. Cross from Buda side after Hospital in the Rock.,47.5071,19.0456,14:00,-2.8,0.0,Activity
+2027-01-11,Budapest,Night,3h,Széchenyi Thermal Baths,Yes,Evening soak – floating in 38°C water while cold air surrounds you is a bucket-list experience. Take M1 underground line from Parliament area. Book in advance.,47.5193,19.0793,20:00,-2.8,0.0,Activity
+2027-01-12,Rome,Morning,2h,Budapest > Rome (Flight),No,Direct flight BUD → FCO. Budget carriers (Wizz Air / Ryanair). ~1h 40m. Vibe shift: likely ~13°C and sunny.,41.9029,12.4534,09:00,10.6,5.0,Travel
+2027-01-12,Rome,Night,2h,Evening Walk: Campo de' Fiori & Trastevere,Yes,Vibrant piazza & medieval neighbourhood. Great for a first Rome dinner. Alternative: Piazza del Popolo.,41.8955,12.4723,19:00,10.6,5.0,Activity
+2027-01-13,Rome,Morning,3h,Colosseum,No,Book skip-the-line tickets in advance. January = minimal crowds. Allow 2–3 hours inside.,41.8902,12.4922,09:00,10.6,5.0,Activity
+2027-01-13,Rome,Afternoon,2h,Roman Forum & Palatine Hill,Yes,Combined ticket with Colosseum. Walk the ancient road of emperors. Palatine Hill has panoramic views.,41.8925,12.4853,13:00,10.6,5.0,Activity
+2027-01-14,Rome,Morning,8h,Pompeii Day Trip,No,"High-speed Frecciarossa to Naples Centrale (1h 15m), then Circumvesuviana train to Pompeii Scavi (35m). Entirely outdoors – dress warmly. Mid-January = near-empty site. Book with tour provider.",40.751,14.487,07:00,11.0,5.0,Activity
+2027-01-15,Rome,Morning,4h,Vatican City,No,8am early entry. Book Vatican Museums + Sistine Chapel in advance. Arrive early to beat crowds even in January.,41.9029,12.4534,08:00,10.6,3.3,Activity
+2027-01-15,Rome,Afternoon,1.5h,Pantheon,Yes,Remarkably preserved ancient Roman temple. Book entry in advance (small fee). 5 min walk from Piazza Navona.,41.8986,12.4769,13:00,10.6,3.3,Activity
+2027-01-15,Rome,Night,1h,Trevi Fountain,Yes,Evening visit after dinner nearby. Much less crowded at night in January. Toss a coin.,41.9009,12.4833,20:00,10.6,3.3,Activity
+2027-01-16,Rome,Morning,3h,Fosse Ardeatine Memorial,Yes,WWII massacre site – 335 Italians executed by Nazis in 1944. Deeply moving. Can combine with nearby Museum of the Liberation of Rome.,41.8491,12.4896,10:00,10.6,3.0,Activity
+2027-01-16,Rome,Afternoon,3h,Rome Buffer / Shopping (Saldi),Yes,Winter Sales (Saldi) in full swing. Via dei Condotti (near Spanish Steps) for luxury fashion. Or wander Trastevere for a final Italian afternoon.,41.9058,12.4822,14:00,10.6,3.0,Activity
+2027-01-17,Paris,Morning,2h,Rome > Paris (Flight),No,Short flight FCO → CDG or ORY. Check into Saint-Germain-des-Prés (6th Arrondissement).,48.8566,2.3522,09:00,5.5,4.0,Travel
+2027-01-17,Paris,Night,2h,Evening Walk: Seine & Notre-Dame,Yes,Gentle arrival evening. Notre-Dame restoration ongoing – stunning to view from Pont de l'Archevêché. Walk along the Seine to dinner in Saint-Germain.,48.853,2.3499,19:00,5.5,4.0,Activity
+2027-01-18,Paris,Morning,2h,Champs-Élysées & Arc de Triomphe,Yes,Climb the Arc for panoramic Paris views. Far less crowded in January. Avenue lined with chestnut trees.,48.8738,2.295,10:00,5.5,4.0,Activity
+2027-01-18,Paris,Afternoon,3h,Winter Sales Shopping (Soldes),Yes,Soldes (Winter Sales) in full swing. Galeries Lafayette on Haussmann or Samaritaine near the Louvre – both exceptional.,48.873,2.3424,14:00,5.5,4.0,Activity
+2027-01-18,Paris,Night,2h,Montmartre & Sacré-Cœur,Yes,Best view over Paris at night. Bohemian village atmosphere with cobblestoned streets. Great for dinner in the neighbourhood.,48.8867,2.3431,19:00,5.5,4.0,Activity
+2027-01-19,Paris,Morning,7h,Palace of Versailles (Day Trip),No,RER C train from Paris (~35 mins). Winter perk: Hall of Mirrors is spectacular with a fraction of the summer crowd. Book timed entry in advance.,48.8049,2.1204,09:00,5.5,4.0,Activity
+2027-01-20,Paris,Morning,3h,Musée d'Orsay,Yes,"World-class Impressionist collection (Monet, Renoir, Van Gogh). Sleep in first – visit mid-morning. Often more rewarding than the Louvre and far less exhausting.",48.86,2.3266,11:00,5.5,2.0,Activity
+2027-01-20,Paris,Afternoon,4h,The Louvre,No,3pm fixed - open late,48.8606,2.3376,15:00,-2.8,0.0,Activity
+2027-01-20,Paris,Night,2h,Le Marais & Mémorial de la Shoah,Yes,Trendy historic neighbourhood. The Mémorial de la Shoah (Holocaust Museum) is here – powerful WWII site that fits the trip theme perfectly. Great restaurants for dinner after.,48.8558,2.357,20:00,5.5,2.0,Activity
+2027-01-21,Paris,Morning,3h,Les Invalides (Musée de l'Armée),No,Napoleon's Tomb + world-class WWII & Liberation of Paris exhibits. Essential for the trip's WWII theme. Included in Museum Pass.,48.8553,2.3122,10:00,5.5,2.0,Activity
+2027-01-21,Paris,Afternoon,3h,Shopping (Soldes – Final Day),Yes,Last chance for winter sales. Galeries Lafayette or Samaritaine. Also consider Rue du Faubourg Saint-Honoré for luxury boutiques.,48.873,2.3424,13:00,5.5,2.0,Activity
+2027-01-21,Paris,Night,2h,Eiffel Tower (Illuminated),Yes,Farewell Paris moment. Light show sparkling on the hour after dark. View from Trocadéro or the Champ de Mars lawn.,48.8584,2.2945,20:00,5.5,2.0,Activity
+2027-01-22,Paris,Morning,12h,Paris > Sydney (Departure),No,Depart from CDG. Long-haul home. Check out of hotel and head to airport.,49.0097,2.5479,09:00,5.5,2.0,Travel
