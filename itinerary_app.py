@@ -377,15 +377,28 @@ if not df.empty:
 
     # --- TAB 3: DAILY WALKABILITY & WEATHER ---
     with tab3:
-        st.header("📍 Daily Deep Dive")
-        selected_date = st.selectbox(
-            "Select Date:",
-            sorted(df['Date_Str'].unique()),
-            format_func=lambda d: pd.to_datetime(d).strftime('%-d %b %y, %a'),
-            key="date_select_tab3"
-        )
-        day_data = df[df['Date_Str'] == selected_date].copy()
+        # Create two columns with different widths
+        # Ratio [3, 1] makes the header area larger than the dropdown area
+        col1, col2 = st.columns([3, 1])
 
+        with col1:
+            st.subheader("📍 Daily Deep Dive")
+
+        with col2:
+            # We add a small amount of padding or use the container to align
+            selected_date = st.selectbox(
+                "Select Date:",
+                options=sorted(df['Date_Str'].unique()),
+                format_func=lambda d: pd.to_datetime(d).strftime('%a %-d %b %y'),
+                key="date_select_tab3",
+                label_visibility="collapsed" # Optional: hides the 'Select Date' text for a cleaner look
+            )
+
+        # Everything below this line is outside the columns and stays full-width
+        day_data = df[df['Date_Str'] == selected_date].copy()        
+        # Rest of your display code...
+        st.divider() 
+        
         # Reset map focus whenever the date changes
         if st.session_state.tab3_last_date != selected_date:
             st.session_state.tab3_map_center = None
