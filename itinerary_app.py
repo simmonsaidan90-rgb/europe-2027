@@ -123,16 +123,21 @@ def load_data():
 
 df = load_data()
 
-CITY_COORDS = {
-    "Helsinki": [60.1699, 24.9384], "Krakow": [50.0647, 19.9450],
-    "Prague": [50.0755, 14.4378], "Vienna": [48.2082, 16.3738]
-}
+# Derive city centre coordinates from the CSV (median of all activity lat/longs per city).
+# This means any city added to the itinerary automatically appears on the overview map.
+CITY_COORDS = (
+    df.dropna(subset=["Lat", "Long"])
+    .groupby("City")[["Lat", "Long"]]
+    .median()
+    .apply(lambda r: [r["Lat"], r["Long"]], axis=1)
+    .to_dict()
+)
 
 # --- APP UI ---
 st.title("🇪🇺 Grand European Tour 2027")
 
 if not df.empty:
-    tab1, tab2, tab3 = st.tabs(["📅 Calendar", "🗺️ Full Trip Map", "📋 Daily Walkability"])
+    tab1, tab2, tab3 = st.tabs(["📅 Calendar", "🗺️ Trip Map", "📋 Daily plan"])
 
     # --- TAB 1: CALENDAR ---
     with tab1:
@@ -209,9 +214,18 @@ if not df.empty:
             MAP_CONFIG["overview_center"][1],
             zoom=MAP_CONFIG["overview_zoom"]
         )
+        MAP_EXCLUDE_CITIES = {"Sydney"}
+        activity_counts = df.groupby('City')['Activity'].count()
         for city, loc in CITY_COORDS.items():
-            if city in df['City'].values:
-                folium.Marker(loc, popup=city, icon=folium.Icon(color='red')).add_to(m_full)
+            if city in MAP_EXCLUDE_CITIES:
+                continue
+            count = activity_counts.get(city, 0)
+            folium.Marker(
+                loc,
+                popup=folium.Popup(f"<b>{city}</b><br>{count} activities", max_width=150),
+                tooltip=f"{city} ({count} activities)",
+                icon=folium.Icon(color='red', icon='info-sign')
+            ).add_to(m_full)
         render_map(m_full, key="global_map")
 
     # --- TAB 3: DAILY WALKABILITY & WEATHER ---
