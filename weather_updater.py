@@ -3,7 +3,7 @@ import requests
 import time
 
 # Years to average over. Adjust the window here if you want e.g. 2021-2025 later.
-HISTORY_YEARS = [2020, 2021, 2022, 2023, 2024]
+HISTORY_YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025]
 
 
 def get_open_meteo_weather(lat, lon, date_str):
@@ -54,7 +54,7 @@ def get_open_meteo_weather(lat, lon, date_str):
 
 def update_csv(csv_path='itinerary.csv', force=False):
     """
-    Read the CSV, fetch 5-year average weather for any row that has coordinates
+    Read the CSV, fetch multi-year average weather for any row that has coordinates
     but is missing Hist_Temp (or all rows if force=True), then write back.
 
     Parameters
