@@ -353,74 +353,6 @@ def all_hours(activity_name, lookup):
     return lookup.get(str(activity_name).strip(), {})
 
 
-# ── Cached event & group builders (avoid rebuilding on every rerun) ──────────
-
-@st.cache_data
-def build_calendar_events(_df_hash, df_records, group_data_dict):
-    """Build the calendar events list once; only reruns when data changes."""
-    events = []
-    seen_groups = set()
-
-    for row in df_records:
-        gid        = row.get("Group_ID")
-        is_grouped = gid is not None and bool(str(gid).strip())
-
-        if is_grouped:
-            if gid in seen_groups:
-                continue
-            seen_groups.add(gid)
-            display_name = str(gid).strip()
-            locations    = group_data_dict.get(gid, [])
-        else:
-            display_name = str(row["Activity"])
-            locations    = []
-
-        start_time = row["Time_Fixed"] if row.get("Time_Fixed") is not None else "09:00"
-        start_iso  = f"{row['Date_Str']}T{start_time}:00"
-
-        dur_val = parse_duration(row["Duration"])
-        end_iso = (pd.to_datetime(start_iso) + pd.Timedelta(hours=dur_val)
-                   ).strftime("%Y-%m-%dT%H:%M:%S")
-
-        is_travel = str(row.get("Type", "")).strip().lower() == "travel"
-        icon     = travel_icon(display_name) if is_travel else slot_icon(row["Slot"])
-        bg_color = SLOT_COLORS["travel"]["hex"] if is_travel else event_color(row["Slot"])
-
-        events.append({
-            "title": f"{icon} {display_name}",
-            "start": start_iso,
-            "end":   end_iso,
-            "allDay": False,
-            "backgroundColor": bg_color,
-            "extendedProps": {
-                "activity_name": display_name,
-                "notes":      str(row["Notes"]) if row.get("Notes") is not None else "",
-                "flex":       row["Flexible"],
-                "dur":        row["Duration"],
-                "city":       row["City"],
-                "visit_day":  row.get("DayOfWeek", ""),
-                "is_grouped": is_grouped,
-                "locations":  locations,
-            },
-        })
-
-    return events
-
-
-@st.cache_data
-def build_group_data(_df_hash, grouped_records):
-    """Build the {group_id: [locations]} dict once."""
-    group_data = {}
-    for rec in grouped_records:
-        gid = rec["Group_ID"]
-        if gid not in group_data:
-            group_data[gid] = []
-        group_data[gid].append({
-            "name":      rec["Activity"],
-            "notes":     str(rec["Notes"]) if rec.get("Notes") is not None else "",
-            "visit_day": rec.get("DayOfWeek", ""),
-        })
-    return group_data
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -431,28 +363,23 @@ df = load_data()
 hours_lookup = get_hours_lookup(df) if not df.empty else {}
 url_lookup   = get_url_lookup(df)   if not df.empty else {}
 
-# City centres — vectorised groupby, no iterrows
+# City centres — vectorised groupby
 CITY_COORDS = {}
 if not df.empty:
     coords_df = df[df["Has_Coords"]].groupby("City")[["Lat", "Long"]].median()
     CITY_COORDS = {city: [row["Lat"], row["Long"]] for city, row in coords_df.iterrows()}
 
-# Build group data and calendar events via cached functions
+# Pre-group Group_ID rows so the calendar loop doesn't scan per group
 _group_data = {}
-_calendar_events = []
 if not df.empty:
-    _df_hash = pd.util.hash_pandas_object(df).sum()
-
-    grouped_mask = df["Group_ID"].notna()
-    grouped_records = df[grouped_mask][["Activity", "Notes", "DayOfWeek", "Group_ID"]].to_dict("records")
-    _group_data = build_group_data(_df_hash, tuple(str(r) for r in grouped_records) if False else grouped_records)
-
-    # Convert to records once for the cached builder
-    event_cols = ["Activity", "Date_Str", "Duration", "Slot", "Flexible",
-                  "Notes", "City", "DayOfWeek", "Type", "Group_ID", "Time_Fixed"]
-    existing_cols = [c for c in event_cols if c in df.columns]
-    df_records = df[existing_cols].where(df.notna(), None).to_dict("records")
-    _calendar_events = build_calendar_events(_df_hash, df_records, _group_data)
+    grouped_rows = df[df["Group_ID"].notna()]
+    for gid, gdf in grouped_rows.groupby("Group_ID"):
+        _group_data[gid] = [
+            {"name": r["Activity"],
+             "notes": str(r["Notes"]) if pd.notna(r["Notes"]) else "",
+             "visit_day": r.get("DayOfWeek", "")}
+            for _, r in gdf.iterrows()
+        ]
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -512,6 +439,52 @@ if not df.empty:
         col_cal, col_info = st.columns([2, 1])
 
         with col_cal:
+            events = []
+            seen_groups = set()
+
+            for _, row in df.iterrows():
+                gid        = row.get("Group_ID")
+                is_grouped = pd.notna(gid) and bool(str(gid).strip())
+
+                if is_grouped:
+                    if gid in seen_groups:
+                        continue
+                    seen_groups.add(gid)
+                    display_name = str(gid).strip()
+                    locations    = _group_data.get(gid, [])
+                else:
+                    display_name = str(row["Activity"])
+                    locations    = []
+
+                start_time = row["Time_Fixed"] if pd.notna(row.get("Time_Fixed")) else "09:00"
+                start_iso  = f"{row['Date_Str']}T{start_time}:00"
+
+                dur_val = parse_duration(row["Duration"])
+                end_iso = (pd.to_datetime(start_iso) + pd.Timedelta(hours=dur_val)
+                           ).strftime("%Y-%m-%dT%H:%M:%S")
+
+                is_travel = str(row.get("Type", "")).strip().lower() == "travel"
+                icon     = travel_icon(display_name) if is_travel else slot_icon(row["Slot"])
+                bg_color = SLOT_COLORS["travel"]["hex"] if is_travel else event_color(row["Slot"])
+
+                events.append({
+                    "title": f"{icon} {display_name}",
+                    "start": start_iso,
+                    "end":   end_iso,
+                    "allDay": False,
+                    "backgroundColor": bg_color,
+                    "extendedProps": {
+                        "activity_name": display_name,
+                        "notes":      str(row["Notes"]) if pd.notna(row["Notes"]) else "",
+                        "flex":       row["Flexible"],
+                        "dur":        row["Duration"],
+                        "city":       row["City"],
+                        "visit_day":  row.get("DayOfWeek", ""),
+                        "is_grouped": is_grouped,
+                        "locations":  locations,
+                    },
+                })
+
             cal_opts = {
                 "initialDate": first_date,
                 "initialView": "dayGridMonth",
@@ -524,7 +497,7 @@ if not df.empty:
                 "navLinks": True,
             }
 
-            state = calendar(events=_calendar_events, options=cal_opts)
+            state = calendar(events=events, options=cal_opts)
             if state.get("eventClick"):
                 st.session_state.clicked_event = state["eventClick"]["event"]
 
