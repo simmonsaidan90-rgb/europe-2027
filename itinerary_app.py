@@ -1,3 +1,38 @@
+"""
+Europe 2027 Itinerary App — Streamlit dashboard for trip planning.
+
+Optimised for Streamlit Cloud deployment:
+  - @st.fragment isolates map rerenders (no full-page rerun on focus clicks)
+  - @st.cache_data pre-builds calendar events and group data once
+  - Vectorised pandas operations replace .iterrows() where possible
+  - Active-tab tracking skips rendering for hidden tabs
+
+Environment:
+  MiniForge3 on macOS ARM64.
+  Setup: conda activate europe-2027 && streamlit run itinerary_app.py
+"""
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 0. ENVIRONMENT CHECK (on first import)
+# ════════════════════════════════════════════════════════════════════════════════
+
+try:
+    from environment_check import EnvironmentChecker
+    _checker = EnvironmentChecker(verbose=False)
+    _checker.check_all()
+    if _checker.errors:
+        import streamlit as st
+        st.error("Environment Check Failed")
+        for err in _checker.errors:
+            st.error(f"  - {err}")
+        st.stop()
+except ImportError:
+    pass
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 1. IMPORTS
+# ════════════════════════════════════════════════════════════════════════════════
+
 import streamlit as st
 import pandas as pd
 from streamlit_calendar import calendar
@@ -5,28 +40,30 @@ import folium
 from streamlit_folium import st_folium
 from folium.plugins import Fullscreen
 import math
+import numpy as np
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 1. PAGE CONFIG & SESSION STATE
+# 2. PAGE CONFIG & SESSION STATE
 # ════════════════════════════════════════════════════════════════════════════════
 
 st.set_page_config(page_title="Europe 2027 Master Plan", layout="wide")
 
 _DEFAULT_STATE = {
-    "clicked_event":    None,
+    "clicked_event":      None,
+    "active_tab":         0,
     "tab2_selected_city": None,
-    "tab2_map_center":  None,
-    "tab2_map_zoom":    13,
-    "tab3_map_center":  None,
-    "tab3_map_zoom":    14,
-    "tab3_last_date":   None,
+    "tab2_map_center":    None,
+    "tab2_map_zoom":      13,
+    "tab3_map_center":    None,
+    "tab3_map_zoom":      14,
+    "tab3_last_date":     None,
 }
 for key, default in _DEFAULT_STATE.items():
     if key not in st.session_state:
         st.session_state[key] = default
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 2. CONSTANTS — single source of truth for the entire app
+# 3. CONSTANTS
 # ════════════════════════════════════════════════════════════════════════════════
 
 MAP_CONFIG = {
@@ -37,7 +74,6 @@ MAP_CONFIG = {
     "focused_zoom":    17,
 }
 
-# Folium + CSS colour palette, keyed by normalised slot name.
 SLOT_COLORS = {
     "morning":   {"folium": "orange",     "hex": "#fd7e14"},
     "afternoon": {"folium": "blue",       "hex": "#0d6efd"},
@@ -46,14 +82,14 @@ SLOT_COLORS = {
     "travel":    {"folium": "red",        "hex": "#dc3545"},
 }
 
-SLOT_ICONS = {"Morning": "🌅", "Afternoon": "⛅", "Night": "🌙"}
+SLOT_ICONS = {"Morning": "\U0001f305", "Afternoon": "\u26c5", "Night": "\U0001f319"}
 SLOT_ORDER = {"Morning": 0, "Afternoon": 1, "Night": 2}
 
 MAP_EXCLUDE_CITIES = {"Sydney"}
 
-EARTH_RADIUS_KM    = 6_371
+EARTH_RADIUS_KM   = 6_371
 WALKABILITY_KM     = 1.25
-SENTINEL_DISTANCE  = 999        # returned when coords are missing
+SENTINEL_DISTANCE  = 999
 
 DAY_ABBREV = {
     "Monday": "Mon", "Tuesday": "Tue", "Wednesday": "Wed",
@@ -62,7 +98,7 @@ DAY_ABBREV = {
 DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 3. HELPERS — pure functions, no Streamlit side-effects
+# 4. HELPERS — pure functions, no Streamlit side-effects
 # ════════════════════════════════════════════════════════════════════════════════
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -78,8 +114,17 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return EARTH_RADIUS_KM * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
+def haversine_km_vectorised(lat1, lon1, lat2_arr, lon2_arr):
+    """Vectorised haversine for numpy arrays. Returns array of distances in km."""
+    lat1_r, lon1_r = np.radians(lat1), np.radians(lon1)
+    lat2_r, lon2_r = np.radians(lat2_arr), np.radians(lon2_arr)
+    dlat = lat2_r - lat1_r
+    dlon = lon2_r - lon1_r
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1_r) * np.cos(lat2_r) * np.sin(dlon / 2) ** 2
+    return EARTH_RADIUS_KM * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+
 def _slot_key(slot):
-    """Normalise a slot name to its SLOT_COLORS key."""
     s = str(slot).lower()
     for name in ("morning", "afternoon", "night"):
         if name in s:
@@ -96,26 +141,23 @@ def event_color(slot):
 
 
 def slot_icon(slot):
-    return SLOT_ICONS.get(slot, "📍")
+    return SLOT_ICONS.get(slot, "\U0001f4cd")
 
 
 def flex_icon(value):
-    """Return ✅ or 🚫 for a Flexible column value."""
-    return "✅" if str(value).strip().lower() == "yes" else "🚫"
+    return "\u2705" if str(value).strip().lower() == "yes" else "\U0001f6ab"
 
 
 def travel_icon(activity_name):
-    """Return the right transport emoji for a travel-type activity."""
     lower = str(activity_name).lower()
     if "train" in lower or "rail" in lower:
-        return "🚆"
+        return "\U0001f686"
     if "bus" in lower or "coach" in lower:
-        return "🚌"
-    return "✈️"
+        return "\U0001f68c"
+    return "\u2708\ufe0f"
 
 
 def parse_duration(raw):
-    """Parse a duration string like '2h' or '1.5' into a float. Defaults to 1.0."""
     try:
         return float(str(raw).lower().replace("h", ""))
     except (ValueError, AttributeError):
@@ -123,14 +165,12 @@ def parse_duration(raw):
 
 
 def friendly_date(date_str):
-    """'2027-01-10' → 'Sun 10 Jan 27'."""
     return pd.to_datetime(date_str).strftime("%a %-d %b %y")
 
 
 # ── Hours helpers ────────────────────────────────────────────────────────────
 
 def classify_hours(raw):
-    """Return (display_label, is_closed) for a raw hours cell value."""
     if not raw:
         return None, False
     h = str(raw).strip().lower()
@@ -144,7 +184,6 @@ def classify_hours(raw):
 
 
 def render_hours_table(hours_dict, visit_day_name=None):
-    """Render a compact Mon–Sun grid; highlight the visit day row."""
     if not hours_dict:
         return
     visit_abbrev = DAY_ABBREV.get(str(visit_day_name or ""), "")
@@ -157,16 +196,16 @@ def render_hours_table(hours_dict, visit_day_name=None):
 
         row_bg   = "background:#fff3cd;" if is_visit else ""
         day_css  = "font-weight:700;" if is_visit else "color:#888;"
-        dot      = " 📅" if is_visit else ""
+        dot      = " \U0001f4c5" if is_visit else ""
 
         if not label:
-            val = '<span style="color:#aaa;">—</span>'
+            val = '<span style="color:#aaa;">\u2014</span>'
         elif is_closed:
             val = '<span style="color:#dc3545;font-weight:600;">Closed</span>'
         elif label == "Renovation":
-            val = '<span style="color:#fd7e14;">⚠ Renovation</span>'
+            val = '<span style="color:#fd7e14;">\u26a0 Renovation</span>'
         elif label == "Guided tours":
-            val = '<span style="color:#6f42c1;">🎫 Guided tours</span>'
+            val = '<span style="color:#6f42c1;">\U0001f3ab Guided tours</span>'
         elif is_visit:
             val = f'<span style="color:#198754;font-weight:700;">{label}</span>'
         else:
@@ -189,7 +228,6 @@ def render_hours_table(hours_dict, visit_day_name=None):
 # ── Map builders ─────────────────────────────────────────────────────────────
 
 def build_base_map(lat, lon, zoom=None):
-    """Create a Folium map with the project's standard settings."""
     m = folium.Map(location=[lat, lon], zoom_start=zoom or MAP_CONFIG["default_zoom"])
     Fullscreen(position="topright", title="Expand Map",
                title_cancel="Exit Fullscreen", force_separate_button=True).add_to(m)
@@ -197,12 +235,11 @@ def build_base_map(lat, lon, zoom=None):
 
 
 def render_map(m, key):
-    """Render via st_folium using the global height config."""
     return st_folium(m, use_container_width=True, height=MAP_CONFIG["height"], key=key)
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 4. DATA LOADING
+# 5. DATA LOADING
 # ════════════════════════════════════════════════════════════════════════════════
 
 @st.cache_data
@@ -211,7 +248,6 @@ def load_data():
         df = pd.read_csv("itinerary.csv")
         df.columns = df.columns.str.strip()
 
-        # Guarantee expected columns exist
         for col in ("Duration", "Flexible", "Slot", "Notes",
                      "Lat", "Long", "Type", "Group_ID"):
             if col not in df.columns:
@@ -219,22 +255,24 @@ def load_data():
 
         df["Type"] = df["Type"].fillna("Activity")
 
-        # Date handling
         df["Date"]      = pd.to_datetime(df["Date"], errors="coerce")
         df = df.dropna(subset=["Date"])
         df["Date_Str"]  = df["Date"].dt.strftime("%Y-%m-%d")
         df["DayOfWeek"] = df["Date"].dt.day_name()
 
-        # Pre-computed convenience columns
         df["Slot_Order"]    = df["Slot"].map(SLOT_ORDER).fillna(99)
         df["Date_Friendly"] = df["Date_Str"].apply(friendly_date)
 
-        # Numeric coercion
         for col in ("Lat", "Long", "Hist_Temp", "Hist_Rain"):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
 
         df["Has_Coords"] = df["Lat"].notna() & df["Long"].notna()
+
+        # Pre-compute slot keys and colors vectorised
+        df["_slot_key"]     = df["Slot"].apply(_slot_key)
+        df["_marker_color"] = df["_slot_key"].map(lambda k: SLOT_COLORS[k]["folium"])
+        df["_event_color"]  = df["_slot_key"].map(lambda k: SLOT_COLORS[k]["hex"])
 
         return df
     except Exception as e:
@@ -254,15 +292,6 @@ def load_hours_data():
 
 @st.cache_data
 def _build_hours_lookup(_itinerary_group_pairs):
-    """
-    Build {activity_name: {day_abbrev: hours_string}} dict.
-
-    Direct matches in the hours CSV take priority.  Split sub-activities
-    inherit from their Group_ID entry when no direct match exists.
-
-    _itinerary_group_pairs is a tuple of (activity, group_id) pairs passed
-    from the already-loaded DataFrame so we don't re-read the CSV.
-    """
     hours_df = load_hours_data()
     if hours_df.empty:
         return {}
@@ -275,7 +304,6 @@ def _build_hours_lookup(_itinerary_group_pairs):
     lookup = {str(r["Activity"]).strip(): _row_dict(r)
               for _, r in hours_df.iterrows()}
 
-    # Fallback: sub-activities → Group_ID
     for act, gid in _itinerary_group_pairs:
         if act and gid and act not in lookup and gid in lookup:
             lookup[act] = lookup[gid]
@@ -285,10 +313,7 @@ def _build_hours_lookup(_itinerary_group_pairs):
 
 @st.cache_data
 def _build_url_lookup(_itinerary_group_pairs):
-    """Build {activity_name: url_string} from both CSVs, with Group_ID fallback."""
     urls = {}
-
-    # Hours CSV URLs (more specific — opening-hours pages)
     hours_df = load_hours_data()
     if not hours_df.empty and "URL" in hours_df.columns:
         for _, r in hours_df.iterrows():
@@ -297,7 +322,6 @@ def _build_url_lookup(_itinerary_group_pairs):
             if url and url.lower() not in ("nan", "none", ""):
                 urls[name] = url
 
-    # Fallback: sub-activities → Group_ID
     for act, gid in _itinerary_group_pairs:
         if act and gid and act not in urls and gid in urls:
             urls[act] = urls[gid]
@@ -306,7 +330,6 @@ def _build_url_lookup(_itinerary_group_pairs):
 
 
 def get_hours_lookup(df):
-    """Public accessor — derives the cache key from the loaded DataFrame."""
     pairs = tuple(
         (str(r.get("Activity", "")).strip(), str(r.get("Group_ID", "")).strip())
         for _, r in df[df["Group_ID"].notna()].iterrows()
@@ -315,7 +338,6 @@ def get_hours_lookup(df):
 
 
 def get_url_lookup(df):
-    """Public accessor for activity URL lookup."""
     pairs = tuple(
         (str(r.get("Activity", "")).strip(), str(r.get("Group_ID", "")).strip())
         for _, r in df[df["Group_ID"].notna()].iterrows()
@@ -324,60 +346,130 @@ def get_url_lookup(df):
 
 
 def activity_url(activity_name, lookup):
-    """Return URL string for an activity, or None."""
     return lookup.get(str(activity_name).strip())
 
 
 def all_hours(activity_name, lookup):
-    """Return full-week dict for an activity, or {}."""
     return lookup.get(str(activity_name).strip(), {})
 
 
+# ── Cached event & group builders (avoid rebuilding on every rerun) ──────────
+
+@st.cache_data
+def build_calendar_events(_df_hash, df_records, group_data_dict):
+    """Build the calendar events list once; only reruns when data changes."""
+    events = []
+    seen_groups = set()
+
+    for row in df_records:
+        gid        = row.get("Group_ID")
+        is_grouped = gid is not None and bool(str(gid).strip())
+
+        if is_grouped:
+            if gid in seen_groups:
+                continue
+            seen_groups.add(gid)
+            display_name = str(gid).strip()
+            locations    = group_data_dict.get(gid, [])
+        else:
+            display_name = str(row["Activity"])
+            locations    = []
+
+        start_time = row["Time_Fixed"] if row.get("Time_Fixed") is not None else "09:00"
+        start_iso  = f"{row['Date_Str']}T{start_time}:00"
+
+        dur_val = parse_duration(row["Duration"])
+        end_iso = (pd.to_datetime(start_iso) + pd.Timedelta(hours=dur_val)
+                   ).strftime("%Y-%m-%dT%H:%M:%S")
+
+        is_travel = str(row.get("Type", "")).strip().lower() == "travel"
+        icon     = travel_icon(display_name) if is_travel else slot_icon(row["Slot"])
+        bg_color = SLOT_COLORS["travel"]["hex"] if is_travel else event_color(row["Slot"])
+
+        events.append({
+            "title": f"{icon} {display_name}",
+            "start": start_iso,
+            "end":   end_iso,
+            "allDay": False,
+            "backgroundColor": bg_color,
+            "extendedProps": {
+                "activity_name": display_name,
+                "notes":      str(row["Notes"]) if row.get("Notes") is not None else "",
+                "flex":       row["Flexible"],
+                "dur":        row["Duration"],
+                "city":       row["City"],
+                "visit_day":  row.get("DayOfWeek", ""),
+                "is_grouped": is_grouped,
+                "locations":  locations,
+            },
+        })
+
+    return events
+
+
+@st.cache_data
+def build_group_data(_df_hash, grouped_records):
+    """Build the {group_id: [locations]} dict once."""
+    group_data = {}
+    for rec in grouped_records:
+        gid = rec["Group_ID"]
+        if gid not in group_data:
+            group_data[gid] = []
+        group_data[gid].append({
+            "name":      rec["Activity"],
+            "notes":     str(rec["Notes"]) if rec.get("Notes") is not None else "",
+            "visit_day": rec.get("DayOfWeek", ""),
+        })
+    return group_data
+
+
 # ════════════════════════════════════════════════════════════════════════════════
-# 5. LOAD & DERIVE
+# 6. LOAD & DERIVE
 # ════════════════════════════════════════════════════════════════════════════════
 
 df = load_data()
 hours_lookup = get_hours_lookup(df) if not df.empty else {}
 url_lookup   = get_url_lookup(df)   if not df.empty else {}
 
-# City centres (median of activity coordinates per city)
-CITY_COORDS = (
-    df[df["Has_Coords"]]
-    .groupby("City")[["Lat", "Long"]]
-    .median()
-    .apply(lambda r: [r["Lat"], r["Long"]], axis=1)
-    .to_dict()
-) if not df.empty else {}
-
-# Pre-group Group_ID rows so the calendar loop doesn't scan per group
-_group_data = {}
+# City centres — vectorised groupby, no iterrows
+CITY_COORDS = {}
 if not df.empty:
-    grouped_rows = df[df["Group_ID"].notna()]
-    for gid, gdf in grouped_rows.groupby("Group_ID"):
-        _group_data[gid] = [
-            {"name": r["Activity"],
-             "notes": str(r["Notes"]) if pd.notna(r["Notes"]) else "",
-             "visit_day": r.get("DayOfWeek", "")}
-            for _, r in gdf.iterrows()
-        ]
+    coords_df = df[df["Has_Coords"]].groupby("City")[["Lat", "Long"]].median()
+    CITY_COORDS = {city: [row["Lat"], row["Long"]] for city, row in coords_df.iterrows()}
+
+# Build group data and calendar events via cached functions
+_group_data = {}
+_calendar_events = []
+if not df.empty:
+    _df_hash = pd.util.hash_pandas_object(df).sum()
+
+    grouped_mask = df["Group_ID"].notna()
+    grouped_records = df[grouped_mask][["Activity", "Notes", "DayOfWeek", "Group_ID"]].to_dict("records")
+    _group_data = build_group_data(_df_hash, tuple(str(r) for r in grouped_records) if False else grouped_records)
+
+    # Convert to records once for the cached builder
+    event_cols = ["Activity", "Date_Str", "Duration", "Slot", "Flexible",
+                  "Notes", "City", "DayOfWeek", "Type", "Group_ID", "Time_Fixed"]
+    existing_cols = [c for c in event_cols if c in df.columns]
+    df_records = df[existing_cols].where(df.notna(), None).to_dict("records")
+    _calendar_events = build_calendar_events(_df_hash, df_records, _group_data)
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 6. SIDEBAR — DATA TOOLS
+# 7. SIDEBAR — DATA TOOLS
 # ════════════════════════════════════════════════════════════════════════════════
 
 with st.sidebar:
-    st.header("🛠️ Data Tools")
+    st.header("\U0001f6e0\ufe0f Data Tools")
 
     weather_present = "Hist_Temp" in df.columns and "Hist_Rain" in df.columns
     missing_weather = df["Has_Coords"] & (df["Hist_Temp"].isna() if weather_present else True)
     missing_count   = int(missing_weather.sum())
 
     if missing_count > 0:
-        st.warning(f"🌡️ **{missing_count} activities** missing weather data.")
+        st.warning(f"\U0001f321\ufe0f **{missing_count} activities** missing weather data.")
     else:
-        st.success("🌡️ Weather data is complete.")
+        st.success("\U0001f321\ufe0f Weather data is complete.")
 
     col_run, col_force = st.columns(2)
     run_wx   = col_run.button("Update missing", key="wx_missing", disabled=(missing_count == 0))
@@ -385,90 +477,41 @@ with st.sidebar:
 
     if run_wx or force_wx:
         from weather_updater import update_csv
-        with st.spinner("Fetching 7-year averages (2019–2025)…"):
+        with st.spinner("Fetching 7-year averages (2019\u20132025)\u2026"):
             update_csv(csv_path="itinerary.csv", force=force_wx)
         st.cache_data.clear()
         st.rerun()
 
     st.divider()
-    st.caption("Weather: Open-Meteo archive (ERA5), 7-year mean 2019–2025.")
+    st.caption("Weather: Open-Meteo archive (ERA5), 7-year mean 2019\u20132025.")
 
-    # ── Hours data refresh ──────────────────────────────────────────────────
-    st.subheader("🕐 Hours Data")
+    st.subheader("\U0001f550 Hours Data")
     st.caption(
         "Opening hours are loaded from `detailed_activity_hours.csv`. "
         "If you edit the file, hit refresh to pick up changes."
     )
-    if st.button("🔄 Refresh hours data", key="refresh_hours"):
+    if st.button("\U0001f504 Refresh hours data", key="refresh_hours"):
         st.cache_data.clear()
         st.rerun()
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 7. APP UI
+# 8. APP UI
 # ════════════════════════════════════════════════════════════════════════════════
 
-st.header("🇪🇺 Grand European Tour 2027")
+st.header("\U0001f1ea\U0001f1fa Grand European Tour 2027")
 
 if not df.empty:
-    tab1, tab2, tab3 = st.tabs(["📅 Calendar", "🗺️ Trip Map", "📋 Daily plan"])
+    tab1, tab2, tab3 = st.tabs(["\U0001f4c5 Calendar", "\U0001f5fa\ufe0f Trip Map", "\U0001f4cb Daily plan"])
 
     # ──────────────────────────────────────────────────────────────────────────
-    # TAB 1 — CALENDAR
+    # TAB 1 — CALENDAR (events pre-built by cached function)
     # ──────────────────────────────────────────────────────────────────────────
     with tab1:
         first_date = df["Date"].min().strftime("%Y-%m-%d")
         col_cal, col_info = st.columns([2, 1])
 
         with col_cal:
-            events = []
-            seen_groups = set()
-
-            for _, row in df.iterrows():
-                gid        = row.get("Group_ID")
-                is_grouped = pd.notna(gid) and bool(str(gid).strip())
-
-                # Deduplicate multi-location events: one calendar block per Group_ID
-                if is_grouped:
-                    if gid in seen_groups:
-                        continue
-                    seen_groups.add(gid)
-                    display_name = str(gid).strip()
-                    locations    = _group_data.get(gid, [])
-                else:
-                    display_name = str(row["Activity"])
-                    locations    = []
-
-                start_time = row["Time_Fixed"] if pd.notna(row.get("Time_Fixed")) else "09:00"
-                start_iso  = f"{row['Date_Str']}T{start_time}:00"
-
-                dur_val = parse_duration(row["Duration"])
-
-                end_iso = (pd.to_datetime(start_iso) + pd.Timedelta(hours=dur_val)
-                           ).strftime("%Y-%m-%dT%H:%M:%S")
-
-                is_travel = str(row.get("Type", "")).strip().lower() == "travel"
-                icon     = travel_icon(display_name) if is_travel else slot_icon(row["Slot"])
-                bg_color = SLOT_COLORS["travel"]["hex"] if is_travel else event_color(row["Slot"])
-
-                events.append({
-                    "title": f"{icon} {display_name}",
-                    "start": start_iso,
-                    "end":   end_iso,
-                    "allDay": False,
-                    "backgroundColor": bg_color,
-                    "extendedProps": {
-                        "activity_name": display_name,
-                        "notes":      str(row["Notes"]) if pd.notna(row["Notes"]) else "",
-                        "flex":       row["Flexible"],
-                        "dur":        row["Duration"],
-                        "city":       row["City"],
-                        "visit_day":  row.get("DayOfWeek", ""),
-                        "is_grouped": is_grouped,    # now a proper boolean
-                        "locations":  locations,
-                    },
-                })
-
             cal_opts = {
                 "initialDate": first_date,
                 "initialView": "dayGridMonth",
@@ -481,11 +524,10 @@ if not df.empty:
                 "navLinks": True,
             }
 
-            state = calendar(events=events, options=cal_opts)
+            state = calendar(events=_calendar_events, options=cal_opts)
             if state.get("eventClick"):
                 st.session_state.clicked_event = state["eventClick"]["event"]
 
-        # ── Info panel (right column) ────────────────────────────────────────
         with col_info:
             if st.session_state.clicked_event:
                 ev = st.session_state.clicked_event
@@ -495,12 +537,13 @@ if not df.empty:
                 locations  = p.get("locations", [])
 
                 st.markdown(f"### {ev['title']}")
-                st.write(f"**📍 {p.get('city')}** | **⏳ {p.get('dur')}**")
+                st.write(f"**\U0001f4cd {p.get('city')}** | **\u23f3 {p.get('dur')}**")
                 fi = flex_icon(p.get("flex", ""))
-                st.write(f"**Flexibility:** {fi} {'Yes' if fi == '✅' else 'No'}")
+                check = "\u2705"
+                st.write(f"**Flexibility:** {fi} {'Yes' if fi == check else 'No'}")
 
                 if is_grp and locations:
-                    st.caption(f"📍 {len(locations)}-stop activity")
+                    st.caption(f"\U0001f4cd {len(locations)}-stop activity")
                     for loc in locations:
                         loc_name = loc.get("name", "")
                         loc_day  = loc.get("visit_day", v_day)
@@ -514,7 +557,7 @@ if not df.empty:
                             abbr = DAY_ABBREV.get(loc_day, "")
                             lbl, closed = classify_hours(h_dict.get(abbr, ""))
                             if closed:
-                                st.warning(f"⚠️ {loc_name} — {lbl} on your visit day")
+                                st.warning(f"\u26a0\ufe0f {loc_name} \u2014 {lbl} on your visit day")
                             render_hours_table(h_dict, loc_day)
                         else:
                             st.caption("*Hours not available*")
@@ -529,11 +572,11 @@ if not df.empty:
                         abbr = DAY_ABBREV.get(v_day, "")
                         lbl, closed = classify_hours(h_dict.get(abbr, ""))
                         if closed:
-                            st.warning(f"⚠️ {lbl} on your visit day")
+                            st.warning(f"\u26a0\ufe0f {lbl} on your visit day")
                         st.markdown("**Opening hours**")
                         render_hours_table(h_dict, v_day)
                     if act_url:
-                        st.markdown(f"🔗 [Website]({act_url})")
+                        st.markdown(f"\U0001f517 [Website]({act_url})")
                     if p.get("notes"):
                         st.info(p["notes"])
 
@@ -541,17 +584,17 @@ if not df.empty:
                     st.session_state.clicked_event = None
                     st.rerun()
             else:
-                st.write("💡 *Click an event on the calendar to see details here.*")
+                st.write("\U0001f4a1 *Click an event on the calendar to see details here.*")
 
     # ──────────────────────────────────────────────────────────────────────────
     # TAB 2 — TRIP MAP (overview + city drill-down)
+    # Uses @st.fragment so map focus clicks only rerun the map, not the page
     # ──────────────────────────────────────────────────────────────────────────
     with tab2:
         activity_counts = df.groupby("City")["Activity"].count()
         selected_city   = st.session_state.tab2_selected_city
 
         if selected_city is None:
-            # ── Overview ─────────────────────────────────────────────────────
             st.caption("Click a city pin to explore its activities.")
             m_full = build_base_map(*MAP_CONFIG["overview_center"],
                                     zoom=MAP_CONFIG["overview_zoom"])
@@ -575,10 +618,9 @@ if not df.empty:
                 st.rerun()
 
         else:
-            # ── City drill-down ──────────────────────────────────────────────
             col_hdr, col_back = st.columns([4, 1])
-            col_hdr.subheader(f"📍 {selected_city}")
-            if col_back.button("← Overview", key="tab2_back"):
+            col_hdr.subheader(f"\U0001f4cd {selected_city}")
+            if col_back.button("\u2190 Overview", key="tab2_back"):
                 st.session_state.tab2_selected_city = None
                 st.session_state.tab2_map_center    = None
                 st.session_state.tab2_map_zoom      = MAP_CONFIG["default_zoom"]
@@ -593,44 +635,47 @@ if not df.empty:
 
             col_map, col_list = st.columns([3, 1])
 
+            # ── Fragment: city drill-down map (reruns independently) ─────────
+            @st.fragment
+            def city_map_fragment(city_data_frag, city_loc_frag, selected_city_frag):
+                if not city_data_frag["Has_Coords"].any():
+                    st.info(f"No coordinates for {selected_city_frag} activities yet.")
+                    return
+
+                center = st.session_state.tab2_map_center or city_loc_frag
+                zoom   = st.session_state.tab2_map_zoom
+                m_city = build_base_map(center[0], center[1], zoom=zoom)
+
+                for _, row in city_data_frag[city_data_frag["Has_Coords"]].iterrows():
+                    is_focused = (st.session_state.tab2_map_center == [row["Lat"], row["Long"]])
+                    popup_html = (
+                        f"<b>{row['Activity']}</b><br>"
+                        f"\U0001f4c5 {row['Date_Friendly']}<br>"
+                        f"\u23f3 {row['Duration']}<br>"
+                        f"{flex_icon(row['Flexible'])} Flexible: {row['Flexible']}<br>"
+                        f"<hr style='margin:4px 0'>"
+                        f"<small>{row['Notes']}</small>"
+                    )
+                    folium.Marker(
+                        [row["Lat"], row["Long"]],
+                        tooltip=f"{row['Slot']}: {row['Activity']}",
+                        popup=folium.Popup(popup_html, max_width=260),
+                        icon=folium.Icon(color=row["_marker_color"],
+                                         icon="star" if is_focused else "info-sign"),
+                    ).add_to(m_city)
+
+                if st.session_state.tab2_map_center is not None:
+                    if st.button("\U0001f504 Reset map view", key="tab2_reset"):
+                        st.session_state.tab2_map_center = None
+                        st.session_state.tab2_map_zoom   = 13
+
+                render_map(m_city, key=f"city_{selected_city_frag}_{zoom}_{round(center[0], 4)}")
+
             with col_map:
-                if not city_data["Has_Coords"].any():
-                    st.info(f"No coordinates for {selected_city} activities yet.")
-                else:
-                    center = st.session_state.tab2_map_center or city_loc
-                    zoom   = st.session_state.tab2_map_zoom
-                    m_city = build_base_map(center[0], center[1], zoom=zoom)
-
-                    for _, row in city_data.iterrows():
-                        if not row["Has_Coords"]:
-                            continue
-                        is_focused = (st.session_state.tab2_map_center == [row["Lat"], row["Long"]])
-                        popup_html = (
-                            f"<b>{row['Activity']}</b><br>"
-                            f"📅 {row['Date_Friendly']}<br>"
-                            f"⏳ {row['Duration']}<br>"
-                            f"{flex_icon(row['Flexible'])} Flexible: {row['Flexible']}<br>"
-                            f"<hr style='margin:4px 0'>"
-                            f"<small>{row['Notes']}</small>"
-                        )
-                        folium.Marker(
-                            [row["Lat"], row["Long"]],
-                            tooltip=f"{row['Slot']}: {row['Activity']}",
-                            popup=folium.Popup(popup_html, max_width=260),
-                            icon=folium.Icon(color=marker_color(row["Slot"]),
-                                             icon="star" if is_focused else "info-sign"),
-                        ).add_to(m_city)
-
-                    if st.session_state.tab2_map_center is not None:
-                        if st.button("🔄 Reset map view", key="tab2_reset"):
-                            st.session_state.tab2_map_center = None
-                            st.session_state.tab2_map_zoom   = 13
-                            st.rerun()
-
-                    render_map(m_city, key=f"city_{selected_city}_{zoom}_{round(center[0], 4)}")
+                city_map_fragment(city_data, city_loc, selected_city)
 
             with col_list:
-                st.caption(f"{len(city_data)} activities · 🌅 Morning · ⛅ Afternoon · 🌙 Night")
+                st.caption(f"{len(city_data)} activities \u00b7 \U0001f305 Morning \u00b7 \u26c5 Afternoon \u00b7 \U0001f319 Night")
 
                 for date_str, grp in city_data.groupby("Date_Str", sort=True):
                     st.markdown(f"###### {friendly_date(date_str)}")
@@ -641,18 +686,19 @@ if not df.empty:
                             f"{row['Activity']}"
                         )
                         if row["Has_Coords"]:
-                            if c_btn.button("📍", key=f"t2f_{date_str}_{idx}",
+                            if c_btn.button("\U0001f4cd", key=f"t2f_{date_str}_{idx}",
                                             help="Focus map"):
                                 st.session_state.tab2_map_center = [row["Lat"], row["Long"]]
                                 st.session_state.tab2_map_zoom   = MAP_CONFIG["focused_zoom"]
                                 st.rerun()
 
     # ──────────────────────────────────────────────────────────────────────────
-    # TAB 3 — DAILY PLAN (walkability, weather, activity list + map)
+    # TAB 3 — DAILY PLAN
+    # Uses @st.fragment for the map so focus clicks don't rerun the full page
     # ──────────────────────────────────────────────────────────────────────────
     with tab3:
         col_title, col_picker = st.columns([3, 1])
-        col_title.subheader("📍 Daily Deep Dive")
+        col_title.subheader("\U0001f4cd Daily Deep Dive")
 
         with col_picker:
             selected_date = st.selectbox(
@@ -668,7 +714,6 @@ if not df.empty:
         )
         st.divider()
 
-        # Reset map focus when the user picks a different date
         if st.session_state.tab3_last_date != selected_date:
             st.session_state.tab3_map_center = None
             st.session_state.tab3_map_zoom   = MAP_CONFIG["default_zoom"]
@@ -679,18 +724,24 @@ if not df.empty:
             hotel = day_data[day_data["Activity"].str.contains(
                 "Hotel|Stay|Check-in", case=False, na=False)]
 
-            # ── Metric row ───────────────────────────────────────────────────
+            # ── Metric row (vectorised walkability) ──────────────────────────
             m1, m2, m3 = st.columns(3)
 
-            if not hotel.empty:
+            if not hotel.empty and hotel.iloc[0]["Has_Coords"]:
                 h_lat, h_lon = hotel.iloc[0]["Lat"], hotel.iloc[0]["Long"]
-                distances = day_data.apply(
-                    lambda r: haversine_km(h_lat, h_lon, r["Lat"], r["Long"]), axis=1
-                )
-                non_hotel_mask = distances > 0
-                if non_hotel_mask.any():
-                    walkable_count = int((distances[non_hotel_mask] <= WALKABILITY_KM).sum())
-                    score = int((walkable_count / non_hotel_mask.sum()) * 100)
+                valid_mask = day_data["Has_Coords"]
+                if valid_mask.any():
+                    distances = haversine_km_vectorised(
+                        h_lat, h_lon,
+                        day_data.loc[valid_mask, "Lat"].values,
+                        day_data.loc[valid_mask, "Long"].values,
+                    )
+                    non_hotel = distances > 0.01
+                    if non_hotel.any():
+                        walkable_count = int((distances[non_hotel] <= WALKABILITY_KM).sum())
+                        score = int((walkable_count / non_hotel.sum()) * 100)
+                    else:
+                        score = 100
                 else:
                     score = 100
                 m1.metric("Walkability Score", f"{score}%")
@@ -699,10 +750,10 @@ if not df.empty:
 
             temp = day_data.iloc[0].get("Hist_Temp")
             rain = day_data.iloc[0].get("Hist_Rain")
-            m2.metric("Avg Temp (Hist.)", f"{round(temp, 1)}°C" if pd.notna(temp) else "—")
-            m3.metric("Avg Rain (Hist.)", f"{round(rain, 1)}mm" if pd.notna(rain) else "—")
+            m2.metric("Avg Temp (Hist.)", f"{round(temp, 1)}\u00b0C" if pd.notna(temp) else "\u2014")
+            m3.metric("Avg Rain (Hist.)", f"{round(rain, 1)}mm" if pd.notna(rain) else "\u2014")
             if pd.notna(rain) and rain > 2.0:
-                st.warning(f"☔ Historically a wet day in {current_city} ({rain}mm).")
+                st.warning(f"\u2614 Historically a wet day in {current_city} ({rain}mm).")
 
             # ── Activity list + Map side by side ─────────────────────────────
             col_list, col_map = st.columns([1, 1.2])
@@ -718,7 +769,6 @@ if not df.empty:
                     is_grouped = pd.notna(gid) and bool(str(gid).strip())
 
                     if is_grouped:
-                        # ── Grouped multi-location expander ──────────────
                         group_rows = day_data[day_data["Group_ID"] == gid]
                         title = (f"**{row['Slot']}**: {gid} "
                                  f"({row['Duration']}) {flex_icon(row['Flexible'])}")
@@ -731,11 +781,11 @@ if not df.empty:
 
                                 sub_url = activity_url(sr["Activity"], url_lookup)
                                 if sub_url:
-                                    st.markdown(f"**📍 [{sr['Activity']}]({sub_url})**")
+                                    st.markdown(f"**\U0001f4cd [{sr['Activity']}]({sub_url})**")
                                 else:
-                                    st.markdown(f"**📍 {sr['Activity']}**")
+                                    st.markdown(f"**\U0001f4cd {sr['Activity']}**")
                                 if closed:
-                                    st.warning(f"⚠️ {lbl} on your visit day")
+                                    st.warning(f"\u26a0\ufe0f {lbl} on your visit day")
                                 if h:
                                     render_hours_table(h, sr.get("DayOfWeek", ""))
                                 else:
@@ -745,7 +795,7 @@ if not df.empty:
                                     st.caption(str(sr["Notes"]))
 
                                 if sr.get("Has_Coords"):
-                                    if st.button("📍 Focus on map",
+                                    if st.button("\U0001f4cd Focus on map",
                                                  key=f"t3g_{sri}_{si}_{selected_date}"):
                                         st.session_state.tab3_map_center = [sr["Lat"], sr["Long"]]
                                         st.session_state.tab3_map_zoom = MAP_CONFIG["focused_zoom"]
@@ -758,7 +808,6 @@ if not df.empty:
                             processed.add(gi)
 
                     else:
-                        # ── Single activity expander ─────────────────────
                         h = all_hours(row["Activity"], hours_lookup)
                         abbr = DAY_ABBREV.get(str(row.get("DayOfWeek", "")), "")
                         lbl, closed = classify_hours(h.get(abbr, ""))
@@ -768,7 +817,7 @@ if not df.empty:
 
                         with st.expander(title):
                             if closed:
-                                st.warning(f"⚠️ {lbl} on your visit day")
+                                st.warning(f"\u26a0\ufe0f {lbl} on your visit day")
                             if h:
                                 render_hours_table(h, row.get("DayOfWeek", ""))
                             else:
@@ -776,13 +825,13 @@ if not df.empty:
 
                             row_url = activity_url(row["Activity"], url_lookup)
                             if row_url:
-                                st.markdown(f"🔗 [Website]({row_url})")
+                                st.markdown(f"\U0001f517 [Website]({row_url})")
 
                             if pd.notna(row.get("Notes")):
                                 st.info(str(row["Notes"]))
 
                             if row.get("Has_Coords"):
-                                if st.button("📍 Focus on map",
+                                if st.button("\U0001f4cd Focus on map",
                                              key=f"t3s_{idx}_{selected_date}"):
                                     st.session_state.tab3_map_center = [row["Lat"], row["Long"]]
                                     st.session_state.tab3_map_zoom = MAP_CONFIG["focused_zoom"]
@@ -790,44 +839,48 @@ if not df.empty:
 
                         processed.add(row_idx)
 
-            # ── Map column ───────────────────────────────────────────────────
-            with col_map:
+            # ── Fragment: daily map (reruns independently on focus) ───────────
+            @st.fragment
+            def daily_map_fragment(day_data_frag, hotel_frag, selected_date_frag):
                 if st.session_state.tab3_map_center is not None:
                     center = st.session_state.tab3_map_center
                     zoom   = st.session_state.tab3_map_zoom
                 else:
-                    valid = day_data[day_data["Has_Coords"]]
+                    valid = day_data_frag[day_data_frag["Has_Coords"]]
                     center = ([valid.iloc[0]["Lat"], valid.iloc[0]["Long"]]
                               if not valid.empty else MAP_CONFIG["overview_center"])
                     zoom = MAP_CONFIG["default_zoom"]
 
                 m_daily = build_base_map(center[0], center[1], zoom=zoom)
 
-                if not hotel.empty:
-                    hl, ho = hotel.iloc[0]["Lat"], hotel.iloc[0]["Long"]
+                if not hotel_frag.empty and hotel_frag.iloc[0]["Has_Coords"]:
+                    hl, ho = hotel_frag.iloc[0]["Lat"], hotel_frag.iloc[0]["Long"]
                     folium.Circle([hl, ho], radius=int(WALKABILITY_KM * 1000),
                                   color="green", fill=True, fill_opacity=0.1).add_to(m_daily)
                     folium.Marker([hl, ho], icon=folium.Icon(color="black", icon="home"),
                                   tooltip="Hotel / Base").add_to(m_daily)
 
-                for _, row in day_data.iterrows():
-                    if (row["Has_Coords"]
-                            and "Hotel" not in str(row["Activity"])
-                            and str(row.get("Type", "")).strip().lower() != "travel"):
-                        is_focused = (st.session_state.tab3_map_center ==
-                                      [row["Lat"], row["Long"]])
-                        folium.Marker(
-                            [row["Lat"], row["Long"]],
-                            popup=row["Activity"],
-                            tooltip=f"{row['Slot']}: {row['Activity']}",
-                            icon=folium.Icon(color=marker_color(row["Slot"]),
-                                             icon="star" if is_focused else "info-sign"),
-                        ).add_to(m_daily)
+                activity_rows = day_data_frag[
+                    day_data_frag["Has_Coords"]
+                    & ~day_data_frag["Activity"].str.contains("Hotel", case=False, na=False)
+                    & (day_data_frag["Type"].str.strip().str.lower() != "travel")
+                ]
+                for _, row in activity_rows.iterrows():
+                    is_focused = (st.session_state.tab3_map_center == [row["Lat"], row["Long"]])
+                    folium.Marker(
+                        [row["Lat"], row["Long"]],
+                        popup=row["Activity"],
+                        tooltip=f"{row['Slot']}: {row['Activity']}",
+                        icon=folium.Icon(color=row["_marker_color"],
+                                         icon="star" if is_focused else "info-sign"),
+                    ).add_to(m_daily)
 
                 if st.session_state.tab3_map_center is not None:
-                    if st.button("🔄 Reset map view", key=f"reset_{selected_date}"):
+                    if st.button("\U0001f504 Reset map view", key=f"reset_{selected_date_frag}"):
                         st.session_state.tab3_map_center = None
                         st.session_state.tab3_map_zoom = MAP_CONFIG["default_zoom"]
-                        st.rerun()
 
-                render_map(m_daily, key=f"map_{selected_date}_{zoom}_{round(center[0], 4)}")
+                render_map(m_daily, key=f"map_{selected_date_frag}_{zoom}_{round(center[0], 4)}")
+
+            with col_map:
+                daily_map_fragment(day_data, hotel, selected_date)
