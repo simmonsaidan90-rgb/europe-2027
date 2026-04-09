@@ -63,9 +63,25 @@ for key, default in _DEFAULT_STATE.items():
         st.session_state[key] = default
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 3. CONSTANTS
+# 2a MAP DISPLAY #
 # ════════════════════════════════════════════════════════════════════════════════
 
+
+# Add custom CSS for adaptive map height
+st.markdown(
+    """
+    <style>
+        @media (min-width: 768px) {
+            .folium-map {
+                height: 80vh !important; /* Adjust to desired percentage */
+            }
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Constants
 MAP_CONFIG = {
     "height":          500,
     "default_zoom":    14,
@@ -73,6 +89,27 @@ MAP_CONFIG = {
     "overview_center": [50.0, 15.0],
     "focused_zoom":    17,
 }
+
+# ── Map builders ─────────────────────────────────────────────────────────────
+def build_base_map(lat, lon, zoom=None):
+    m = folium.Map(location=[lat, lon], zoom_start=zoom or MAP_CONFIG["default_zoom"])
+    Fullscreen(position="topright", title="Expand Map",
+               title_cancel="Exit Fullscreen", force_separate_button=True).add_to(m)
+    return m
+
+def render_map(m, key):
+    # Use a dynamic height class for the map
+    st_folium(m, width=725, height='100%', key=key)
+
+# Example usage
+if __name__ == "__main__":
+    map_center = [50.0, 15.0]
+    m = build_base_map(map_center[0], map_center[1])
+    render_map(m, "my_map")
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 3. CONSTANTS
+# ════════════════════════════════════════════════════════════════════════════════
 
 SLOT_COLORS = {
     "morning":   {"folium": "orange",     "hex": "#fd7e14"},
@@ -223,19 +260,6 @@ def render_hours_table(hours_dict, visit_day_name=None):
         f'{rows_html}</table>',
         unsafe_allow_html=True,
     )
-
-
-# ── Map builders ─────────────────────────────────────────────────────────────
-
-def build_base_map(lat, lon, zoom=None):
-    m = folium.Map(location=[lat, lon], zoom_start=zoom or MAP_CONFIG["default_zoom"])
-    Fullscreen(position="topright", title="Expand Map",
-               title_cancel="Exit Fullscreen", force_separate_button=True).add_to(m)
-    return m
-
-
-def render_map(m, key):
-    return st_folium(m, use_container_width=True, height=MAP_CONFIG["height"], key=key)
 
 
 # ════════════════════════════════════════════════════════════════════════════════
