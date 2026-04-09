@@ -101,12 +101,6 @@ def render_map(m, key):
     # Use a dynamic height class for the map
     st_folium(m, width=725, height='100%', key=key)
 
-# Example usage
-if __name__ == "__main__":
-    map_center = [50.0, 15.0]
-    m = build_base_map(map_center[0], map_center[1])
-    render_map(m, "my_map")
-
 # ════════════════════════════════════════════════════════════════════════════════
 # 3. CONSTANTS
 # ════════════════════════════════════════════════════════════════════════════════
