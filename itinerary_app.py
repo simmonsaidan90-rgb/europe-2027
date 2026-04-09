@@ -61,6 +61,22 @@ _DEFAULT_STATE = {
 for key, default in _DEFAULT_STATE.items():
     if key not in st.session_state:
         st.session_state[key] = default
+# ════════════════════════════════════════════════════════════════════════════════
+# 2a. custom CSS to make the map heights adaptive
+# ════════════════════════════════════════════════════════════════════════════════
+
+st.markdown(
+    """
+    <style>
+        @media (min-width: 768px) {
+            .folium-map {
+                height: 80vh !important; /* Adjust to desired percentage */
+            }
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 3. CONSTANTS
