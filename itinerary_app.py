@@ -243,6 +243,19 @@ def render_hours_table(hours_dict, visit_day_name=None):
 
 # ── Map builders ─────────────────────────────────────────────────────────────
 
+st.markdown(
+    """
+    <style>
+        @media (min-width: 768px) {
+            .folium-map {
+                height: 80vh !important; /* Adjust to desired percentage */
+            }
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 def build_base_map(lat, lon, zoom=None):
     m = folium.Map(location=[lat, lon], zoom_start=zoom or MAP_CONFIG["default_zoom"])
     Fullscreen(position="topright", title="Expand Map",
