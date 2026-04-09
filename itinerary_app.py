@@ -46,22 +46,6 @@ import numpy as np
 # 2. PAGE CONFIG & SESSION STATE
 # ════════════════════════════════════════════════════════════════════════════════
 
-#display map code
-
-st.markdown(
-    """
-    <style>
-        @media (min-width: 768px) {
-            .folium-map {
-                height: 80vh !important; /* Adjust to desired percentage */
-            }
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
 st.set_page_config(page_title="Europe 2027 Master Plan", layout="wide")
 
 _DEFAULT_STATE = {
