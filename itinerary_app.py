@@ -39,6 +39,7 @@ from streamlit_calendar import calendar
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import Fullscreen
+from streamlit_js_eval import streamlit_js_eval
 import math
 import numpy as np
 
@@ -67,12 +68,41 @@ for key, default in _DEFAULT_STATE.items():
 # ════════════════════════════════════════════════════════════════════════════════
 
 MAP_CONFIG = {
-    "height":          500,
     "default_zoom":    14,
     "overview_zoom":   4,
     "overview_center": [50.0, 15.0],
     "focused_zoom":    17,
 }
+
+
+def _map_height() -> int:
+    """Return a viewport-aware map height, cached in session_state.
+
+    Queries window.innerWidth and window.innerHeight via streamlit-js-eval on
+    first load (triggers one extra rerun), then uses the cached values for the
+    rest of the session. Only real JS values are cached — None is never stored,
+    so the fallback never gets permanently baked in.
+
+    Sizing logic:
+        Mobile  (vw < 768)  → fixed 350 px
+        Tablet+ (vw ≥ 768)  → 62 % of viewport height, clamped 420–800 px
+                               e.g. MacBook ~900 px vh  → ~558 px
+                                    large monitor ~1200 px vh → 744 px
+    """
+    if "viewport_width" not in st.session_state:
+        w = streamlit_js_eval(js_expressions="window.innerWidth",  key="_vp_w")
+        h = streamlit_js_eval(js_expressions="window.innerHeight", key="_vp_h")
+        if w:
+            st.session_state.viewport_width  = w
+        if h:
+            st.session_state.viewport_height = h
+
+    vw = st.session_state.get("viewport_width",  1024)
+    vh = st.session_state.get("viewport_height",  900)
+
+    if vw < 768:
+        return 350                              # mobile: fixed, keep it tight
+    return max(420, min(int(vh * 0.64), 800))  # 62 % of vh, capped at 800
 
 SLOT_COLORS = {
     "morning":   {"folium": "orange",     "hex": "#fd7e14"},
@@ -235,7 +265,7 @@ def build_base_map(lat, lon, zoom=None):
 
 
 def render_map(m, key):
-    return st_folium(m, use_container_width=True, height=MAP_CONFIG["height"], key=key)
+    return st_folium(m, use_container_width=True, height=_map_height(), key=key)
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -493,7 +523,7 @@ if not df.empty:
                     "center": "title",
                     "right": "dayGridMonth,timeGridWeek,timeGridDay",
                 },
-                "height":   MAP_CONFIG["height"] + 200,
+                "height":   _map_height() + 100,
                 "navLinks": True,
             }
 

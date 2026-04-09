@@ -1,6 +1,13 @@
-streamlit
-pandas
-folium
-streamlit-folium
-streamlit-calendar
-requests
+# Core dependencies for Europe 2027 Itinerary App
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+folium>=0.14.0
+streamlit-calendar>=0.1.0
+streamlit-folium>=0.11.0
+
+# Responsive viewport detection
+streamlit-js-eval>=0.3.0
+
+# Optional: for weather updates
+requests>=2.31.0
