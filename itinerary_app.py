@@ -63,6 +63,20 @@ for key, default in _DEFAULT_STATE.items():
     if key not in st.session_state:
         st.session_state[key] = default
 
+# Capture viewport dimensions once per session via JS — must live here at the
+# top level so it fires exactly once per script run. _map_height() reads these
+# values as a pure session_state lookup, avoiding duplicate-key errors when it
+# is called multiple times within a single render.
+if "viewport_width" not in st.session_state:
+    _vp_dims = streamlit_js_eval(
+        js_expressions="[window.innerWidth, window.parent.innerHeight]",
+        key="_vp_dims",
+    )
+    if _vp_dims and len(_vp_dims) == 2:
+        w, h = _vp_dims
+        if w: st.session_state.viewport_width  = w
+        if h: st.session_state.viewport_height = h
+
 # ════════════════════════════════════════════════════════════════════════════════
 # 3. CONSTANTS
 # ════════════════════════════════════════════════════════════════════════════════
@@ -76,33 +90,27 @@ MAP_CONFIG = {
 
 
 def _map_height() -> int:
-    """Return a viewport-aware map height, cached in session_state.
+    """Return a viewport-aware map height from session_state.
 
-    Queries window.innerWidth and window.innerHeight via streamlit-js-eval on
-    first load (triggers one extra rerun), then uses the cached values for the
-    rest of the session. Only real JS values are cached — None is never stored,
-    so the fallback never gets permanently baked in.
+    Viewport dimensions are captured once at startup (section 2) via a single
+    streamlit_js_eval call. This function is a pure session_state read — safe
+    to call any number of times per render without causing duplicate-key errors.
+
+    window.innerWidth        → Streamlit content-area width (iframe context)
+    window.parent.innerHeight → true browser viewport height (parent frame)
 
     Sizing logic:
         Mobile  (vw < 768)  → fixed 350 px
-        Tablet+ (vw ≥ 768)  → 62 % of viewport height, clamped 420–800 px
-                               e.g. MacBook ~900 px vh  → ~558 px
-                                    large monitor ~1200 px vh → 744 px
+        Tablet+ (vw ≥ 768)  → 64 % of viewport height, clamped 420–800 px
+                               e.g. MacBook ~900 px vh  → ~576 px
+                                    large monitor ~1200 px vh → 768 px
     """
-    if "viewport_width" not in st.session_state:
-        w = streamlit_js_eval(js_expressions="window.innerWidth",  key="_vp_w")
-        h = streamlit_js_eval(js_expressions="window.innerHeight", key="_vp_h")
-        if w:
-            st.session_state.viewport_width  = w
-        if h:
-            st.session_state.viewport_height = h
-
     vw = st.session_state.get("viewport_width",  1024)
     vh = st.session_state.get("viewport_height",  900)
 
     if vw < 768:
         return 350                              # mobile: fixed, keep it tight
-    return max(420, min(int(vh * 0.64), 800))  # 62 % of vh, capped at 800
+    return max(420, min(int(vh * 0.64), 800))  # 64 % of vh, capped at 800
 
 SLOT_COLORS = {
     "morning":   {"folium": "orange",     "hex": "#fd7e14"},
