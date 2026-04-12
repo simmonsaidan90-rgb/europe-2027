@@ -42,6 +42,9 @@ from folium.plugins import Fullscreen
 from streamlit_js_eval import streamlit_js_eval
 import math
 import numpy as np
+import requests
+import hashlib
+import json
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 2. PAGE CONFIG & SESSION STATE
@@ -58,10 +61,22 @@ _DEFAULT_STATE = {
     "tab3_map_center":    None,
     "tab3_map_zoom":      14,
     "tab3_last_date":     None,
+    # Sandbox state
+    "sandbox_pending":    False,
+    "sandbox_new_event":  None,
+    "df_editable":        None,
 }
 for key, default in _DEFAULT_STATE.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
+# Mutable sandbox defaults — initialised separately to avoid sharing a module-level list
+if "sandbox_changelog" not in st.session_state:
+    st.session_state.sandbox_changelog = []
+if "sandbox_events_hash" not in st.session_state:
+    st.session_state.sandbox_events_hash = None
+if "sandbox_last_cb_hash" not in st.session_state:
+    st.session_state.sandbox_last_cb_hash = None
 
 # Capture viewport dimensions once per session via JS — must live here at the
 # top level so it fires exactly once per script run. _map_height() reads these
@@ -276,6 +291,274 @@ def render_map(m, key):
     return st_folium(m, use_container_width=True, height=_map_height(), key=key)
 
 
+# ── Sandbox helpers ──────────────────────────────────────────────────────────
+
+def _events_hash(events_list):
+    """Stable hash of event positions (id + start + end) for change detection.
+    Used to avoid reprocessing eventsSet when the calendar rerenders without
+    any user-driven change. Guards against versions that return a string or
+    list of strings rather than a list of dicts.
+    """
+    if not isinstance(events_list, list):
+        return hashlib.md5(json.dumps(str(events_list)).encode()).hexdigest()
+    key = sorted(
+        (e.get("id", ""), e.get("start", ""), e.get("end", ""))
+        for e in events_list
+        if isinstance(e, dict)          # skip any string items
+    )
+    return hashlib.md5(json.dumps(key).encode()).hexdigest()
+
+
+def _apply_events_set(df_edit, events_list):
+    """Reconcile df_edit against a full eventsSet payload.
+    Compares each event's current position/duration against df_edit and
+    applies only real differences. Returns (updated_df, [change_descriptions]).
+    This handles drag and resize regardless of which specific callback
+    streamlit_calendar exposes (eventDrop, eventChange, eventsSet, etc.).
+    """
+    df_out  = df_edit.copy()
+    changes = []
+
+    for ev in (events_list or []):
+        event_id  = ev.get("id", "")
+        new_start = ev.get("start", "")
+        new_end   = ev.get("end", "")
+        if not event_id or not new_start:
+            continue
+
+        new_dt     = pd.to_datetime(new_start)
+        new_date_s = new_dt.strftime("%Y-%m-%d")
+        new_time   = new_dt.strftime("%H:%M")
+        new_dur    = (
+            round((pd.to_datetime(new_end) - new_dt).total_seconds() / 3600, 1)
+            if new_end else None
+        )
+
+        if event_id.startswith("group_"):
+            gid  = event_id[len("group_"):]
+            mask = df_out["Group_ID"].astype(str).str.strip() == str(gid).strip()
+            if not mask.any():
+                continue
+            old_date = df_out.loc[mask, "Date_Str"].iloc[0]
+            old_time = str(df_out.loc[mask, "Time_Fixed"].iloc[0])
+            if old_date == new_date_s and old_time == new_time:
+                continue
+            day_delta = (new_dt.date()
+                         - pd.to_datetime(old_date).date()).days
+            df_out.loc[mask, "Date"] = (df_out.loc[mask, "Date"]
+                                        + pd.Timedelta(days=day_delta))
+            df_out.loc[mask, "Time_Fixed"]    = new_time
+            df_out.loc[mask, "Date_Str"]      = (df_out.loc[mask, "Date"]
+                                                  .dt.strftime("%Y-%m-%d"))
+            df_out.loc[mask, "DayOfWeek"]     = df_out.loc[mask, "Date"].dt.day_name()
+            df_out.loc[mask, "Date_Friendly"] = (df_out.loc[mask, "Date_Str"]
+                                                  .apply(friendly_date))
+            changes.append(f"Moved:   Group '{gid}' → {new_date_s} at {new_time}")
+
+        elif event_id.startswith("row_"):
+            try:
+                idx = int(event_id[len("row_"):])
+            except ValueError:
+                continue
+            if idx not in df_out.index:
+                continue
+
+            old_date = df_out.at[idx, "Date_Str"]
+            old_time = str(df_out.at[idx, "Time_Fixed"])
+            old_dur  = df_out.at[idx, "Duration"]
+            act      = df_out.at[idx, "Activity"]
+
+            if old_date != new_date_s or old_time != new_time:
+                df_out.at[idx, "Date"]          = pd.Timestamp(new_date_s)
+                df_out.at[idx, "Date_Str"]      = new_date_s
+                df_out.at[idx, "Time_Fixed"]    = new_time
+                df_out.at[idx, "DayOfWeek"]     = new_dt.strftime("%A")
+                df_out.at[idx, "Date_Friendly"] = friendly_date(new_date_s)
+                changes.append(f"Moved:   '{act}' → {new_date_s} at {new_time}")
+
+            if new_dur is not None and str(new_dur) != str(old_dur):
+                df_out.at[idx, "Duration"] = str(new_dur)
+                changes.append(f"Resized: '{act}' duration → {new_dur}h")
+
+    return df_out, changes
+
+
+def geocode_address(address: str):
+    """Look up lat/lon for a free-text address via Nominatim (OpenStreetMap).
+    Returns (lat, lon) floats, or (None, None) on any failure.
+    Rate-limited to 1 req/s by Nominatim ToS — fine for one-at-a-time entry.
+    """
+    try:
+        resp = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": address, "format": "json", "limit": 1},
+            headers={"User-Agent": "europe-2027-itinerary-app/1.0"},
+            timeout=5,
+        )
+        data = resp.json()
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
+    return None, None
+
+
+def _build_sandbox_events(df_edit):
+    """Build FullCalendar event dicts from df_editable with unique IDs.
+    Grouped events (same Group_ID) produce a single representative event so
+    the whole group moves together on drag.
+    """
+    events      = []
+    seen_groups = set()
+
+    for idx, row in df_edit.iterrows():
+        gid        = row.get("Group_ID")
+        is_grouped = pd.notna(gid) and bool(str(gid).strip())
+
+        if is_grouped:
+            if gid in seen_groups:
+                continue
+            seen_groups.add(gid)
+            display_name = str(gid).strip()
+            event_id     = f"group_{gid}"
+        else:
+            display_name = str(row["Activity"])
+            event_id     = f"row_{idx}"
+
+        start_time = row["Time_Fixed"] if pd.notna(row.get("Time_Fixed")) else "09:00"
+        start_iso  = f"{row['Date_Str']}T{start_time}:00"
+        dur_val    = parse_duration(row["Duration"])
+        end_iso    = (pd.to_datetime(start_iso) + pd.Timedelta(hours=dur_val)
+                      ).strftime("%Y-%m-%dT%H:%M:%S")
+
+        is_travel = str(row.get("Type", "")).strip().lower() == "travel"
+        icon      = travel_icon(display_name) if is_travel else slot_icon(row["Slot"])
+        bg_color  = SLOT_COLORS["travel"]["hex"] if is_travel else event_color(row["Slot"])
+
+        events.append({
+            "id":              event_id,
+            "title":           f"{icon} {display_name}",
+            "start":           start_iso,
+            "end":             end_iso,
+            "allDay":          False,
+            "backgroundColor": bg_color,
+            "extendedProps": {
+                "activity_name": display_name,
+                "dur":           row["Duration"],
+                "city":          row["City"],
+                "is_grouped":    is_grouped,
+            },
+        })
+    return events
+
+
+def _apply_event_drop(df_edit, dropped):
+    """Handle eventChange / eventDrop payloads — covers both drag (position)
+    and resize (duration) since FullCalendar v5 unifies them under eventChange.
+    Returns (updated_df, change_description).
+    """
+    event_id  = dropped["event"]["id"]
+    new_start = dropped["event"]["start"]
+    new_end   = dropped["event"].get("end", "")
+    old_start = dropped.get("oldEvent", {}).get("start", new_start)
+    old_end   = dropped.get("oldEvent", {}).get("end", new_end)
+
+    new_dt     = pd.to_datetime(new_start)
+    old_dt     = pd.to_datetime(old_start)
+    day_delta  = (new_dt.date() - old_dt.date()).days
+    new_time   = new_dt.strftime("%H:%M")
+    new_date_s = new_dt.strftime("%Y-%m-%d")
+
+    # Compute duration change (None if no end time provided)
+    new_dur = None
+    dur_changed = False
+    if new_end and old_end:
+        new_dur = round(
+            (pd.to_datetime(new_end) - pd.to_datetime(new_start)).total_seconds() / 3600, 1
+        )
+        old_dur = round(
+            (pd.to_datetime(old_end) - pd.to_datetime(old_start)).total_seconds() / 3600, 1
+        )
+        dur_changed = new_dur != old_dur
+    elif new_end:
+        new_dur = round(
+            (pd.to_datetime(new_end) - pd.to_datetime(new_start)).total_seconds() / 3600, 1
+        )
+        dur_changed = True
+
+    df_out = df_edit.copy()
+    parts  = []
+
+    if event_id.startswith("group_"):
+        gid  = event_id[len("group_"):]
+        mask = df_out["Group_ID"].astype(str).str.strip() == str(gid).strip()
+        if day_delta != 0 or new_time != "00:00":
+            df_out.loc[mask, "Date"]          = (df_out.loc[mask, "Date"]
+                                                  + pd.Timedelta(days=day_delta))
+            df_out.loc[mask, "Time_Fixed"]    = new_time
+            df_out.loc[mask, "Date_Str"]      = (df_out.loc[mask, "Date"]
+                                                  .dt.strftime("%Y-%m-%d"))
+            df_out.loc[mask, "DayOfWeek"]     = df_out.loc[mask, "Date"].dt.day_name()
+            df_out.loc[mask, "Date_Friendly"] = (df_out.loc[mask, "Date_Str"]
+                                                  .apply(friendly_date))
+            parts.append(f"Group '{gid}' → {new_date_s} at {new_time}")
+        if dur_changed and new_dur is not None:
+            df_out.loc[mask, "Duration"] = str(new_dur)
+            parts.append(f"duration → {new_dur}h")
+
+    elif event_id.startswith("row_"):
+        idx = int(event_id[len("row_"):])
+        if idx in df_out.index:
+            act = df_out.at[idx, "Activity"]
+            if day_delta != 0 or new_time != "00:00":
+                df_out.at[idx, "Date"]          = pd.Timestamp(new_date_s)
+                df_out.at[idx, "Date_Str"]      = new_date_s
+                df_out.at[idx, "Time_Fixed"]    = new_time
+                df_out.at[idx, "DayOfWeek"]     = new_dt.strftime("%A")
+                df_out.at[idx, "Date_Friendly"] = friendly_date(new_date_s)
+                parts.append(f"'{act}' → {new_date_s} at {new_time}")
+            if dur_changed and new_dur is not None:
+                df_out.at[idx, "Duration"] = str(new_dur)
+                parts.append(f"duration → {new_dur}h")
+
+    desc = " | ".join(parts)
+    return df_out, desc
+
+
+def _apply_event_resize(df_edit, resized):
+    """Apply an eventResize return value (duration change) to df_edit.
+    Returns (updated_df, change_description).
+    """
+    event_id  = resized["event"]["id"]
+    start_str = resized["event"]["start"]
+    end_str   = resized["event"].get("end", "")
+
+    if not end_str:
+        return df_edit, ""
+
+    new_dur = round(
+        (pd.to_datetime(end_str) - pd.to_datetime(start_str)).total_seconds() / 3600, 1
+    )
+
+    df_out = df_edit.copy()
+    desc   = ""
+
+    if event_id.startswith("group_"):
+        gid  = event_id[len("group_"):]
+        mask = df_out["Group_ID"].astype(str).str.strip() == str(gid).strip()
+        df_out.loc[mask, "Duration"] = str(new_dur)
+        desc = f"Group '{gid}' duration → {new_dur}h"
+
+    elif event_id.startswith("row_"):
+        idx = int(event_id[len("row_"):])
+        if idx in df_out.index:
+            act = df_out.at[idx, "Activity"]
+            df_out.at[idx, "Duration"] = str(new_dur)
+            desc = f"'{act}' duration → {new_dur}h"
+
+    return df_out, desc
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 # 5. DATA LOADING
 # ════════════════════════════════════════════════════════════════════════════════
@@ -419,9 +702,285 @@ if not df.empty:
             for _, r in gdf.iterrows()
         ]
 
+# Initialise sandbox editable copy — never mutated back to the original df
+if st.session_state.df_editable is None and not df.empty:
+    st.session_state.df_editable = df.copy()
+
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 7. SIDEBAR — DATA TOOLS
+# 7. SANDBOX FRAGMENT
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Columns added by load_data() that should be omitted from the exported CSV
+_DERIVED_COLS = frozenset({
+    "Date_Str", "DayOfWeek", "Slot_Order", "Date_Friendly",
+    "Has_Coords", "_slot_key", "_marker_color", "_event_color",
+})
+
+
+def _render_new_event_form(cities):
+    """Inline form shown when the user selects an empty date/range in the sandbox."""
+    sel      = st.session_state.sandbox_new_event or {}
+    pre_date = sel.get("start", "")[:10]
+
+    st.markdown("**➕ Add activity**")
+    with st.form("sandbox_new_event_form", clear_on_submit=True):
+        activity    = st.text_input("Activity name *")
+        city_choice = st.selectbox("City *", options=cities + ["Other…"])
+        city_other  = (st.text_input("City name", placeholder="Enter city name",
+                                     label_visibility="collapsed")
+                       if city_choice == "Other…" else "")
+        city = city_other.strip() if city_choice == "Other…" else city_choice
+
+        date_val = st.date_input(
+            "Date *",
+            value=(pd.to_datetime(pre_date).date()
+                   if pre_date else pd.Timestamp.now().date()),
+        )
+        slot     = st.selectbox("Slot *", ["Morning", "Afternoon", "Night"])
+        duration = st.number_input("Duration (hrs) *", min_value=0.5,
+                                   max_value=24.0, value=1.0, step=0.5)
+
+        with st.expander("📍 Optional: location details"):
+            address = st.text_input("Street address",
+                                    placeholder="e.g. Louvre Museum, Paris")
+            c1, c2  = st.columns(2)
+            lat_str = c1.text_input("Latitude",  placeholder="48.8606")
+            lon_str = c2.text_input("Longitude", placeholder="2.3376")
+
+        col_add, col_cancel = st.columns(2)
+        submitted = col_add.form_submit_button("Add ✓",    use_container_width=True)
+        cancelled = col_cancel.form_submit_button("Cancel", use_container_width=True)
+
+    if cancelled:
+        st.session_state.sandbox_new_event = None
+        st.rerun(scope="fragment")
+
+    if submitted:
+        if not activity.strip() or not city:
+            st.warning("Activity name and city are required.")
+            return
+
+        # Resolve coordinates: explicit > geocoded > none
+        lat, lon = None, None
+        if lat_str.strip() and lon_str.strip():
+            try:
+                lat, lon = float(lat_str), float(lon_str)
+            except ValueError:
+                st.warning("Invalid lat/lon — skipping coordinates.")
+        elif address.strip():
+            with st.spinner("Geocoding address…"):
+                lat, lon = geocode_address(address.strip())
+            if lat is None:
+                st.warning("Couldn't geocode that address — "
+                           "activity added without map coordinates.")
+
+        slot_time = {"Morning": "09:00", "Afternoon": "13:00", "Night": "19:00"}
+        sk        = _slot_key(slot)
+        new_row   = {
+            "Activity":      activity.strip(),
+            "City":          city,
+            "Date":          pd.Timestamp(date_val),
+            "Date_Str":      date_val.strftime("%Y-%m-%d"),
+            "DayOfWeek":     pd.Timestamp(date_val).day_name(),
+            "Date_Friendly": friendly_date(date_val.strftime("%Y-%m-%d")),
+            "Slot":          slot,
+            "Slot_Order":    SLOT_ORDER.get(slot, 99),
+            "Duration":      duration,
+            "Time_Fixed":    slot_time.get(slot, "09:00"),
+            "Type":          "Activity",
+            "Flexible":      "Yes",
+            "Notes":         "",
+            "Lat":           lat,
+            "Long":          lon,
+            "Has_Coords":    lat is not None and lon is not None,
+            "Group_ID":      None,
+            "_slot_key":     sk,
+            "_marker_color": SLOT_COLORS[sk]["folium"],
+            "_event_color":  SLOT_COLORS[sk]["hex"],
+        }
+
+        st.session_state.df_editable = pd.concat(
+            [st.session_state.df_editable, pd.DataFrame([new_row])],
+            ignore_index=True,
+        )
+        st.session_state.sandbox_changelog.append(
+            f"Added '{activity.strip()}' on "
+            f"{date_val.strftime('%Y-%m-%d')} ({slot})"
+        )
+        st.session_state.sandbox_pending   = True
+        st.session_state.sandbox_new_event = None
+        st.rerun(scope="fragment")
+
+
+@st.fragment
+def _render_sandbox_tab(df, cities):
+    """Editable sandbox calendar backed by df_editable in session_state.
+    Changes never touch the original cached df or itinerary.csv.
+    Wrap in @st.fragment so drag/resize interactions only rerun this section.
+    """
+    # Guard: re-initialise if cache was cleared mid-session
+    if st.session_state.df_editable is None or st.session_state.df_editable.empty:
+        st.session_state.df_editable = df.copy()
+
+    # ── Sandbox banner ────────────────────────────────────────────────────────
+    st.markdown("""
+    <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;
+                padding:10px 16px;margin-bottom:6px;font-size:0.92em;">
+        🧪 <strong>Sandbox mode</strong> — drag events to reschedule,
+        resize to adjust duration, or click/select an empty date to add a new
+        activity. Changes are isolated here and won't affect your main calendar
+        until you export and replace your CSV.
+    </div>
+    """, unsafe_allow_html=True)
+
+    df_edit = st.session_state.df_editable
+    events  = _build_sandbox_events(df_edit)
+
+    sandbox_opts = {
+        "editable":   True,
+        "selectable": True,
+        "initialDate": df_edit["Date"].min().strftime("%Y-%m-%d"),
+        "initialView": "dayGridMonth",
+        "headerToolbar": {
+            "left":   "prev,next today",
+            "center": "title",
+            "right":  "dayGridMonth,timeGridWeek,timeGridDay",
+        },
+        "height":   _map_height() + 100,
+        "navLinks": True,
+    }
+
+    # ── Global toolbar — always visible, no pending-changes gate ─────────────
+    tb_left, tb_mid, tb_right = st.columns([4, 1, 1])
+
+    with tb_mid:
+        n           = len(st.session_state.sandbox_changelog)
+        export_cols = [c for c in st.session_state.df_editable.columns
+                       if c not in _DERIVED_COLS]
+        csv_bytes   = (
+            st.session_state.df_editable[export_cols]
+            .to_csv(index=False)
+            .encode()
+        )
+        label = (f"⬇ Export  ({n} change{'s' if n != 1 else ''})"
+                 if n > 0 else "⬇ Export CSV")
+        st.download_button(
+            label=label,
+            data=csv_bytes,
+            file_name="itinerary_updated.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    with tb_right:
+        if st.button("🔄 Reset", use_container_width=True, key="sandbox_reset"):
+            st.session_state.df_editable       = df.copy()
+            st.session_state.sandbox_changelog   = []
+            st.session_state.sandbox_pending     = False
+            st.session_state.sandbox_new_event   = None
+            st.session_state.sandbox_events_hash = None
+            st.session_state.sandbox_last_cb_hash = None
+            st.rerun(scope="fragment")
+
+    if st.session_state.sandbox_changelog:
+        with st.expander(
+            f"📋 Change log ({len(st.session_state.sandbox_changelog)})",
+            expanded=False,
+        ):
+            for entry in reversed(st.session_state.sandbox_changelog):
+                st.caption(f"• {entry}")
+
+    # ── Calendar + new event form ─────────────────────────────────────────────
+    # col_form is always present but only populated when a date is selected,
+    # keeping the column structure stable across reruns.
+    col_cal, col_form = st.columns([3, 1])
+
+    with col_cal:
+        state = calendar(events=events, options=sandbox_opts, key="sandbox_cal")
+
+    with col_form:
+        if st.session_state.sandbox_new_event:
+            _render_new_event_form(cities)
+
+    # ── Handle calendar interactions ──────────────────────────────────────────
+    # streamlit_calendar versions differ in which drag/resize callbacks they
+    # expose. We try all known variants so the code works across versions:
+    #   eventDrop / eventChange  → single-event move (older/newer library)
+    #   eventResize              → duration resize
+    #   eventsSet                → full event list fired after ANY change;
+    #                              used as the reliable catch-all via hash diff
+    if state:
+        changed = False
+        handled_direct = False   # True when eventChange/Drop/Resize was processed
+
+        # ── Single-event move (try both key names) ────────────────────────
+        # streamlit_calendar replays the last callback on every re-render,
+        # so we fingerprint the payload and skip if already processed.
+        for move_key in ("eventDrop", "eventChange"):
+            if move_key in state:
+                payload = state[move_key]
+                cb_hash = hashlib.md5(
+                    json.dumps(payload, sort_keys=True, default=str).encode()
+                ).hexdigest()
+                if cb_hash == st.session_state.sandbox_last_cb_hash:
+                    break                       # already processed — skip
+                st.session_state.sandbox_last_cb_hash = cb_hash
+
+                df_new, desc = _apply_event_drop(df_edit, payload)
+                st.session_state.df_editable = df_new
+                df_edit = df_new
+                if desc:
+                    st.session_state.sandbox_changelog.append(desc)
+                changed = True
+                handled_direct = True
+                break
+
+        # ── Single-event resize ───────────────────────────────────────────
+        if not handled_direct and "eventResize" in state:
+            payload = state["eventResize"]
+            cb_hash = hashlib.md5(
+                json.dumps(payload, sort_keys=True, default=str).encode()
+            ).hexdigest()
+            if cb_hash != st.session_state.sandbox_last_cb_hash:
+                st.session_state.sandbox_last_cb_hash = cb_hash
+                df_new, desc = _apply_event_resize(df_edit, payload)
+                st.session_state.df_editable = df_new
+                df_edit = df_new
+                if desc:
+                    st.session_state.sandbox_changelog.append(desc)
+                changed = True
+                handled_direct = True
+
+        # ── eventsSet: full reconciliation (catch-all for missed drags) ───
+        # Skip if we already handled a direct callback this cycle — the
+        # eventsSet fired alongside it would just double-count the change.
+        if not handled_direct and "eventsSet" in state:
+            events_data = state["eventsSet"]
+            if (isinstance(events_data, list)
+                    and events_data
+                    and isinstance(events_data[0], dict)):
+                new_hash = _events_hash(events_data)
+                if new_hash != st.session_state.sandbox_events_hash:
+                    st.session_state.sandbox_events_hash = new_hash
+                    df_new, descs = _apply_events_set(df_edit, events_data)
+                    if descs:
+                        st.session_state.df_editable = df_new
+                        st.session_state.sandbox_changelog.extend(descs)
+                        changed = True
+
+        if changed:
+            st.session_state.sandbox_pending = True
+            st.rerun(scope="fragment")
+
+        # ── Date selection → new event form ──────────────────────────────
+        if "select" in state:
+            st.session_state.sandbox_new_event = state["select"]
+            st.rerun(scope="fragment")
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 8. SIDEBAR — DATA TOOLS
 # ════════════════════════════════════════════════════════════════════════════════
 
 with st.sidebar:
@@ -467,7 +1026,12 @@ with st.sidebar:
 st.header("\U0001f1ea\U0001f1fa Grand European Tour 2027")
 
 if not df.empty:
-    tab1, tab2, tab3 = st.tabs(["\U0001f4c5 Calendar", "\U0001f5fa\ufe0f Trip Map", "\U0001f4cb Daily plan"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "\U0001f4c5 Calendar",
+        "\U0001f5fa\ufe0f Trip Map",
+        "\U0001f4cb Daily plan",
+        "\U0001f9ea Sandbox",
+    ])
 
     # ──────────────────────────────────────────────────────────────────────────
     # TAB 1 — CALENDAR (events pre-built by cached function)
@@ -895,3 +1459,10 @@ if not df.empty:
 
             with col_map:
                 daily_map_fragment(day_data, hotel, selected_date)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # TAB 4 — SANDBOX (editable calendar, isolated df copy)
+    # ──────────────────────────────────────────────────────────────────────────
+    with tab4:
+        cities = sorted(df["City"].dropna().unique().tolist())
+        _render_sandbox_tab(df, cities)
